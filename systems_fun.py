@@ -1,4 +1,3 @@
-import itertools
 import os
 import subprocess
 from collections import namedtuple
@@ -7,7 +6,6 @@ from matplotlib import colors as cm
 import numpy as np
 import scipy.optimize
 from numpy import linalg as LA
-import glob
 MapParameters = namedtuple('MapParameters', ['rhs', 'rhsJac', 'valueFirstParam',
                                              'valueSecondParam', 'constParam', 'bounds','optMethodParams', 'bordersEq'])
 
