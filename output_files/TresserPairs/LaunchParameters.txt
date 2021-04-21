@@ -1,0 +1,18 @@
+{
+'NumericTolerance':
+{'zeroImagPartEps': 1e-14,
+'zeroRealPartEps': 1e-14,
+'clustDistThreshold': 1e-5,
+'marginBorder': 0.,},
+'SeparatrixComputing':
+{'separatrixShift': 1e-5,
+'separatrix_rTol': 1e-11,
+'separatrix_aTol': 1e-11,},
+'ConnectionProximity':
+{'toSinkPrxty': 1e-5,
+'toSddlPrxty': 1e-2,},
+'Parameters':
+{'rval': 1.,
+'aval': 4.586725274241098,
+'bval': 5.005604294719737,},
+}
