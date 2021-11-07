@@ -1,9 +1,9 @@
 using Distributed
-# Usage: julia LyapVals.jl <pathToDataFile> <outputMask> <outputDir>
+# Usage: julia classificationSymmetry.jl <pathToDataFile> <outputMask> <outputDir>
 addprocs(8)
 @everywhere using PyCall
 @everywhere np =  pyimport("numpy")
-@everywhere heteroclinicsData = np.loadtxt($(ARGS[1]))
+@everywhere attrData = np.loadtxt($(ARGS[1]))
 @everywhere function prepareData(dataToPrep)
     data = Vector[dataToPrep[1,:]]
     for i in 2:size(dataToPrep[:,1])[1]
@@ -11,7 +11,7 @@ addprocs(8)
     end
     data
 end
-@everywhere data = prepareData(heteroclinicsData)
+@everywhere data = prepareData(attrData)
 @everywhere include("funForJuliaScripts.jl")
 @everywhere using Main.FunForJulia
 
@@ -21,20 +21,20 @@ nameOutputFile = ARGS[2]
 pathToOutputDir = ARGS[3]
 outputFileMask = string(nameOutputFile, timeOfRun)
 outputFileMask = string(outputFileMask, ".txt")
-OutputFile = string(pathToOutputDir, outputFileMask )
+OutputFile = string(pathToOutputDir, outputFileMask)
 @time begin
-    result = pmap(getLyapunovData,  data)
+    result = pmap(getClassOfSymm, data)
 end
 
 if !isempty(result)
         headerStr = (
-                "i  j  alpha  beta  r  LyapunovVal\n0  1  2      3     4  5")
-        fmtList = ["%2u",
-                   "%2u",
-                   "%+18.15f",
-                   "%+18.15f",
-                   "%+18.15f",
-                   "%+18.15f",]
+                "i  j  alpha  beta  r  ClassOfSymmetry\n0  1  2      3     4  5")
+        fmtList = ["%s",
+                   "%s",
+                   "%18s",
+                   "%18s",
+                   "%s",
+                   "%s",]
         np.savetxt(OutputFile, result[1,:], header=headerStr,
                    fmt=fmtList)
 end

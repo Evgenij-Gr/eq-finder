@@ -190,21 +190,23 @@ def prepareStartPtsData(data):
     StartPtsData=[]
     sortedData = sorted(data, key=lambda X: (X[0], X[1]))
     for d in sortedData:
-        i, j, alpha, beta, r, listStartPt = d
+        i, j, alpha, beta, r, listStartPt, maxTime, dt = d
         if listStartPt:
             for startPt in listStartPt:
                 startPtX, startPtY, startPtZ = startPt
-                StartPtsData.append((i, j, alpha, beta, r,  startPtX, startPtY, startPtZ))
+                StartPtsData.append((i, j, alpha, beta, r,  startPtX, startPtY, startPtZ, maxTime, dt))
 
     return StartPtsData
 
-def saveStartPtsDataAsTxt(prepStartPtsData, pathToDir, fileName ):
+def saveStartPtsDataAsTxt(prepStartPtsData, pathToDir, fileName):
     if prepStartPtsData:
         headerStr = (
-                'i  j  alpha  beta r startPtX  startPtY  startPtZ\n' +
-                '0  1  2      3    4 5         6         7')
+                'i  j  alpha  beta r startPtX  startPtY  startPtZ maxTime dt\n' +
+                '0  1  2      3    4 5         6         7        8       9')
         fmtList = ['%2u',
                    '%2u',
+                   '%+18.15f',
+                   '%+18.15f',
                    '%+18.15f',
                    '%+18.15f',
                    '%+18.15f',
