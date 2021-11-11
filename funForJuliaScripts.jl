@@ -136,11 +136,11 @@ function classifySymmetry(distMat)
     el1 = distMat[2][1]
     el2 = distMat[3][1]
     el3 = distMat[4][1]
-    if (log10(el1) < -1.15 && log10(el2) < -1.7 && log10(el3) < -1.15)
+    if (log10(el1) < -1.25)
         symType = "T1"
-    elseif (log10(el1) > -1.15 && log10(el2) < -1.7 && log10(el3) > -1.15)
+    elseif (log10(el1) > -1.25 && log10(el2) < -1.9 && log10(el3) > -1.25)
         symType = "T2"
-    elseif (log10(el1) > -1.15 && log10(el2) > -1.7 && log10(el3) > -1.15)
+    elseif (log10(el1) > -1.25 && log10(el2) > -1.9 && log10(el3) > -1.25)
         symType = "T0"
     else
         symType = "unknown $el1 , $el2"
@@ -148,7 +148,7 @@ function classifySymmetry(distMat)
     return symType
 end
 
-function getSymmType(params, startPt,  maxT = 10000, evalTs = 0.1)
+function getSymmType(params, startPt,  maxT = 20000, evalTs = 0.1)
     sol = getSolFullSyst(params, startPt,  maxT, evalTs)
     pts = np.array(sol.u)
     permutList = [(1, 2, 3, 4), (2, 3, 4, 1), (3, 4, 1, 2), (4, 1, 2, 3)]
