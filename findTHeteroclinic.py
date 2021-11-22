@@ -1,5 +1,7 @@
 import systems_fun as sf
 from collections import defaultdict
+import numpy as np
+import itertools
 import itertools as itls
 import SystOsscills as a4d
 from scipy.spatial import distance
@@ -42,6 +44,45 @@ def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.
                     info['stPt']  = separatrix[0]
                     info['dist'] = dist
                     info['integrationTime'] = integrTimes[i]
+                    outputInfo.append(info)
+
+    return outputInfo
+
+def checkSourceSinkConnectionOnPlane(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, eqTransformer, sepProximity, maxTime, listEqCoords = None):
+    """
+    """
+    grpByAlphaEq = defaultdict(list)
+    for alphaEq, omegaEq in pairsToCheck:
+        grpByAlphaEq[alphaEq].append(omegaEq)
+
+    outputInfo = []
+
+    events = None
+    fis = np.linspace(0, 2 * np.pi, 36)
+
+    for alphaEq, omegaEqs in grpByAlphaEq.items():
+        alphaEqTr = phSpaceTransformer(alphaEq, rhsJac)
+        omegaEqsTr = [phSpaceTransformer(oEq, rhsJac) for oEq in omegaEqs]
+        fullOmegaEqsTr = list(itls.chain.from_iterable([eqTransformer(oEq, rhsJac) for oEq in omegaEqsTr]))
+        if listEqCoords:
+            events = sf.createListOfEvents(alphaEqTr, fullOmegaEqsTr, listEqCoords, ps, proxs)
+        x, y = alphaEqTr.coordinates
+        flag = False
+        for fi in fis:
+            if flag:
+                break
+            startPt = [x + 0.01*np.cos(fi), y + 0.01*np.sin(fi)]
+            traj, integrTime = sf.computeTraj(startPt, rhs, ps, maxTime, events)
+            for omegaEqTr in fullOmegaEqsTr:
+                dist = distance.cdist(traj, [omegaEqTr.coordinates]).min()
+                if dist < sepProximity:
+                    flag = True
+                    info = {}
+                    info['alpha'] = alphaEqTr
+                    info['omega'] = omegaEqTr
+                    info['stPt'] = startPt
+                    info['dist'] = dist
+                    info['integrationTime'] = integrTime
                     outputInfo.append(info)
 
     return outputInfo
@@ -123,7 +164,7 @@ def getTresserPairs(osc: a4d.FourBiharmonicPhaseOscillators, borders, bounds, eq
 
     return tresserPairs
 
-def checkHeterocninicSf1Sf2(osc: a4d.FourBiharmonicPhaseOscillators, borders, bounds, eqFinder, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, maxTime, withEvents = False):
+def checkHeterocninicSf1Sf2SaddleLig(osc: a4d.FourBiharmonicPhaseOscillators, borders, bounds, eqFinder, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, maxTime, withEvents = False):
     rhsInvPlane = osc.getRestriction
     jacInvPlane = osc.getRestrictionJac
     rhsReduced = osc.getReducedSystem
@@ -136,10 +177,48 @@ def checkHeterocninicSf1Sf2(osc: a4d.FourBiharmonicPhaseOscillators, borders, bo
         allSymmEqs = itls.chain.from_iterable([sf.cirTransform(eq, jacReduced) for eq in eqCoords3D])
     else:
         allSymmEqs = None
+    saddles, sadFocsWith1dU, sadFocsWith1dS = sf.getTargEqs(planeEqCoords, osc, ps)
+    finalInfo = []
+    cnctInfo = []
+    if (saddles and sadFocsWith1dU and sadFocsWith1dS):
+        """Check separatrix connection between saddle-focus with 1dU and saddle on edge"""
+        pairEqToCnct = itertools.product(saddles, sadFocsWith1dU)
+        cnctInfo = checkSeparatrixConnection(pairEqToCnct, ps, proxs, rhsInvPlane, jacInvPlane, sf.idTransform,
+                                             sf.pickBothSeparatrices, sf.idListTransform, sf.anyNumber,
+                                             proxs.toSinkPrxty, maxTime, listEqCoords=planeEqCoords)
 
-    pairsSfs = sf.getSadfocsPairs(planeEqCoords, osc, ps)
+    """Check separatrix connection between saddle-focus With 1dU and saddle-focus With 1dS"""
+    if cnctInfo:
+        sadSf1dUList = [(it['alpha'], it['omega']) for it in cnctInfo]
+        targSfWith1dU = np.array(sadSf1dUList)[:, 1]
+        pairEqToCnct = itertools.product(targSfWith1dU, sadFocsWith1dS)
+        cnctInfo = checkSeparatrixConnection(pairEqToCnct, ps, proxs, rhsReduced, jacReduced, sf.embedBackTransform,
+                                             sf.pickCirSeparatrix, sf.cirTransform, sf.hasExactly(1), proxs.toSddlPrxty,
+                                             maxTime, listEqCoords=allSymmEqs)
+        sf1dU_sf1dS_List = [(it['alpha'], it['omega'], it['stPt'], it['dist'], it['integrationTime']) for it in cnctInfo]
+        sadSf1dUSf1dSList = []
+        for sf1dU, sf1dS, stPt, dist, intTime in sf1dU_sf1dS_List:
+            for sad, foc in sadSf1dUList:
+                if (sf.eqOfEqs(sf1dU, sf.embedBackTransform(foc, jacReduced))):
+                    sadSf1dUSf1dSList.append([sf.embedBackTransform(sad, jacReduced), sf1dU, sf1dS, stPt, dist, intTime])
 
-    finalInfo = checkSeparatrixConnection(pairsSfs, ps, proxs, rhsReduced, jacReduced, sf.embedBackTransform,
-                                          sf.pickCirSeparatrix, sf.cirTransform, sf.hasExactly(1), proxs.toSddlPrxty,
-                                          maxTime, listEqCoords=allSymmEqs)
+    """Check separatrix connection between saddle-focus With 1dS and saddle on edge"""
+    if cnctInfo:
+        targSfWith1dS = np.array(sadSf1dUSf1dSList)[:, 2]
+        targSfWith1dSOnPlane = [sf.eqCopyOnPlane(eq, jacReduced, ps) for eq in targSfWith1dS]
+        targSads = np.array(sadSf1dUSf1dSList)[:, 0]
+        targNodes = [sf.getEquilibriumInfo(sf.T(sf.T(eq.coordinates)), jacReduced) for eq in targSads]
+        pairEqToCnct = list(zip(targSfWith1dSOnPlane, targNodes))
+        cnctInfo = checkSourceSinkConnectionOnPlane(pairEqToCnct, ps, proxs, rhsInvPlane, jacInvPlane,
+                                                    sf.planeTransform,
+                                                    sf.idListTransform, proxs.toSinkPrxty,
+                                                    maxTime, listEqCoords=planeEqCoords)
+        sf1dS_saddle_List = {(it['alpha'], it['omega']) for it in cnctInfo}
+        for sf1dSPlane, sadPlane in sf1dS_saddle_List:
+            for sad, sf1dU, sf1dS, stPt, dist, intTime in sadSf1dUSf1dSList:
+                if (sf.eqOfEqs(sf.planeTransform(sf.eqCopyOnPlane(sf1dS, jacReduced, ps), jacInvPlane), sf1dSPlane) and
+                        sf.eqOfEqs(sf.planeTransform(sf.getEquilibriumInfo(sf.T(sf.T(sad.coordinates)), jacReduced),
+                                                     jacInvPlane), sadPlane)):
+                    finalInfo.append([sad, sf1dU, sf1dS, stPt, dist, intTime])
+
     return finalInfo

@@ -14,7 +14,7 @@ import datetime
 from functools import partial
 
 bounds = [(-0.1, +2 * np.pi + 0.1), (-0.1, +2 * np.pi + 0.1)]
-bordersEq = [(-1e-15, +2 * np.pi + 1e-15), (-1e-15, +2 * np.pi + 1e-15)]
+bordersEq = [(-1e-9, +2 * np.pi + 1e-9), (-1e-9, +2 * np.pi + 1e-9)]
 
 def workerCheckHeteroclinicSf1Sf2(params, paramR, events, pset: sf.PrecisionSettings, proxs: sf.ProximitySettings, eqFinderParams):
     (i, a), (j, b) = params
@@ -23,7 +23,7 @@ def workerCheckHeteroclinicSf1Sf2(params, paramR, events, pset: sf.PrecisionSett
     osc = a4d.FourBiharmonicPhaseOscillators(ud[0], ud[1], ud[2], ud[3])
     nSamp, nIters, zeroToCompare = eqFinderParams
     eqf = sf.ShgoEqFinder(nSamp, nIters, zeroToCompare)
-    result = fth.checkHeterocninicSf1Sf2(osc, bordersEq, bounds, eqf, pset, proxs, 1000., events)
+    result = fth.checkHeterocninicSf1Sf2SaddleLig(osc, bordersEq, bounds, eqf, pset, proxs, 1000., events)
     return i, j, a, b, r, result
 
 if __name__ == "__main__":
@@ -59,6 +59,6 @@ if __name__ == "__main__":
     pathToOutputDir = sys.argv[3]
     print("Took {}s".format(end - start))
     outputFileMask = "{}_{}x{}_{}".format(nameOutputFile, N, M, timeOfRun)
-    pf.plotHeteroclinicsData(pf.prepareTargetHeteroclinicsData(ret), alphas, betas, r, pathToOutputDir, outputFileMask)
-    pf.saveHeteroclinicSfDataAsTxt(pf.prepareTargetHeteroclinicsData(ret), pathToOutputDir
-                                  , outputFileMask)
+    pf.plotHeteroclinicsData(pf.prepareSfsHeteroclinicsData(ret), alphas, betas, r, pathToOutputDir, outputFileMask)
+    pf.saveHeteroclinicSfsDataAsTxt(pf.prepareSfsHeteroclinicsData(ret), pathToOutputDir
+                                    , outputFileMask)

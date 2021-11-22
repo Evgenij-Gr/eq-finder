@@ -54,8 +54,10 @@ STD_PRECISION = PrecisionSettings(zeroImagPartEps=1e-14,
                                   marginBorder=0
                                   )
 
+
 class ProximitySettings:
-    def __init__(self, toSinkPrxtyEv, toSddlPrxtyEv, toTargetSinkPrxtyEv, toTargetSddlPrxtyEv, toSinkPrxty, toSddlPrxty):
+    def __init__(self, toSinkPrxtyEv, toSddlPrxtyEv, toTargetSinkPrxtyEv, toTargetSddlPrxtyEv, toSinkPrxty,
+                 toSddlPrxty):
         assert toSinkPrxtyEv > 0, "Precision must be greater than zero!"
         assert toSddlPrxtyEv > 0, "Precision must be greater than zero!"
         assert toTargetSinkPrxtyEv > 0, "Precision must be greater than zero!"
@@ -72,8 +74,8 @@ class ProximitySettings:
 
 STD_PROXIMITY = ProximitySettings(toSinkPrxtyEv=1e-6,
                                   toSddlPrxtyEv=1e-3,
-                                  toTargetSinkPrxtyEv=9*1e-6,
-                                  toTargetSddlPrxtyEv=9*1e-3,
+                                  toTargetSinkPrxtyEv=9 * 1e-6,
+                                  toTargetSddlPrxtyEv=9 * 1e-3,
                                   toSinkPrxty=1e-5,
                                   toSddlPrxty=1e-2
                                   )
@@ -333,7 +335,6 @@ def isPtInUpperTriangle(ptOnPlane, ps: PrecisionSettings):
     return (x >= ps.marginBorder) and (x + ps.marginBorder <= y) and (y <= 2 * np.pi - ps.marginBorder)
 
 
-
 def isStable2DFocus(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [2, 0, 0, 1, 0]
 
@@ -364,7 +365,7 @@ def listEqOnInvPlaneTo3D(listEq, rhs):
         listEq3D.append(embedBackTransform(eq, rhs.getReducedSystemJac))
     return listEq3D
 
-def getSaddleSadfocPairs(eqList, rhs, ps: PrecisionSettings, needTresserPairs = False):
+def getSaddleSadfocPairs(eqList, rhs, ps: PrecisionSettings, needTresserPairs=False):
     '''
     Accepts EqList — a list of all Equilibria on invariant plane.
     Returns pairs of Equilibria that might be organized in
@@ -412,12 +413,12 @@ def get1dUnstEqs(eqList, rhs, ps: PrecisionSettings, OnlySadFoci):
     list1dUnstEqs = []
     for eq in eqList:
         ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D  = embedBackTransform(eq, rhs.getReducedSystemJac)
+        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
         if (isPtInUpperTriangle(ptOnInvPlane, ps)):
             if (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
                 list1dUnstEqs.append(eq)
             if not OnlySadFoci:
-                if(isStable2DNode(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
+                if (isStable2DNode(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
                     list1dUnstEqs.append(eq)
 
     return list1dUnstEqs
@@ -426,7 +427,7 @@ def pickBothSeparatrices(ptCoord, eqCoord):
     return True
 
 
-def isInCIR(pt, strictly = False):
+def isInCIR(pt, strictly=False):
     th2, th3, th4 = pt
     if strictly:
         return (0 + 1e-2 <= th2) and (th2 <= th3 - 1e-2) and (th3 <= th4 - 1e-2) and (th4 <= (2 * np.pi - 1e-2))
@@ -436,7 +437,7 @@ def isInCIR(pt, strictly = False):
 def pickCirSeparatrix(ptCoord, eqCoord):
     return isInCIR(ptCoord)
 
-def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, listEvents = None):
+def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, listEvents=None):
     startPts = getInitPointsOnUnstable1DSeparatrix(eq, condition, ps)
     rhs_vec = lambda t, X: rhs(X)
     separatrices = []
@@ -448,13 +449,21 @@ def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, co
         integrationTime.append(sol.t[-1])
     return [separatrices, integrationTime]
 
+def computeTraj(startPt, rhs, ps: PrecisionSettings, maxTime, listEvents=None):
+    rhs_vec = lambda t, X: rhs(X)
+    sol = solve_ivp(rhs_vec, [0, maxTime], startPt, events=listEvents, rtol=ps.rTol, atol=ps.aTol,
+                    dense_output=True)
+    traj = np.transpose(sol.y)
+    integrationTime = sol.t[-1]
+    return [traj, integrationTime]
+
 def constructDistEvent(x0, eps):
-    evt = lambda t, X: distance.euclidean(x0,X) - eps
+    evt = lambda t, X: distance.euclidean(x0, X) - eps
     return evt
 
 def isSaddle(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
-    return eqType[0] > 0 and eqType[1]==0 and eqType[2] > 0
+    return eqType[0] > 0 and eqType[1] == 0 and eqType[2] > 0
 
 def isSink(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
@@ -543,3 +552,46 @@ def getSadfocsPairs(eqList, rhs, ps: PrecisionSettings):
         for sd2DUnst, sd3DWith1dS in sadFocsWith1dS:
             conf.append((sf2DSt, sd2DUnst))
     return conf
+
+def getTargEqs(eqList, rhs, ps: PrecisionSettings):
+    """
+    return all saddle-focus With 1dU, saddle-focus With 1dS and saddle on edge -
+    equilibrium states that can participate in the heteroclinic cycle with a ligament between two saddle-foci
+    """
+    saddles = []
+    sadFocsWith1dU = []
+    sadFocsWith1dS = []
+    for eq in eqList:
+        ptOnInvPlane = eq.coordinates
+        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
+        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
+            if (is2DSaddle(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
+                if (eq.coordinates[1] - eq.coordinates[0] < ps.zeroRealPartEps):
+                    saddles.append(eq)
+
+            elif (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
+                sadFocsWith1dU.append(eq)
+
+            elif (isUnstable2DFocus(eq, ps) and is3DSaddleFocusWith1dS(eqOnPlaneIn3D, ps)):
+                sadFocsWith1dS.append(eq)
+
+    return [saddles, sadFocsWith1dU, sadFocsWith1dS]
+
+
+def eqCopyOnPlane(eq: Equilibrium, rhsJac, ps: PrecisionSettings):
+    x, y, z = eq.coordinates
+    for i in range(4):
+        if (x < ps.zeroRealPartEps):
+            return getEquilibriumInfo([x, y, z], rhsJac)
+        x, y, z = T([x, y, z])
+
+def planeTransform(eq: Equilibrium, rhsJac):
+    x, y, z = eq.coordinates
+    return getEquilibriumInfo([y, z], rhsJac)
+
+def eqOfEqs(eq1, eq2):
+    """to compare equilibrium states """
+    if (eq1.coordinates == eq2.coordinates and eq1.eigenvalues == eq2.eigenvalues):
+        return True
+    else:
+        return False

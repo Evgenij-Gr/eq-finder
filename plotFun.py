@@ -34,16 +34,19 @@ def saveHeteroclinicsDataAsTxt(HeteroclinicsData, pathToDir, fileName ):
         fullOutputName = os.path.join(pathToDir, fileName+'.txt')
         np.savetxt(fullOutputName, HeteroclinicsData, header=headerStr, fmt=fmtList)
 
-def saveHeteroclinicSfDataAsTxt(HeteroclinicsData, pathToDir, fileName ):
+def saveHeteroclinicSfsDataAsTxt(HeteroclinicsData, pathToDir, fileName ):
     """
     (i, j, a, b, r, dist, timeIntegration, coordsStartPt, coordsSadfoc, coordsSaddle)
     """
     if HeteroclinicsData:
         headerStr = (
-                'i  j  alpha  beta  r  distTrajToEq  integrationTime  startPtX  startPtY  startPtZ  sadfoc1dUnPtX  sadfoc1dUnPtY  sadfoc1dUnPtZ  sadfoc1dStPtX  sadfoc1dStPtY  sadfoc1dStPtZ\n' +
-                '0  1  2      3     4  5             6                7         8         9         10             11             12             13             14             15')
+                'i  j  alpha  beta  r  distTrajToEq  integrationTime  startPtX  startPtY  startPtZ  saddle1PtX  saddle1PtY  saddle1PtZ  sadfoc1dUnPtX  sadfoc1dUnPtY  sadfoc1dUnPtZ  sadfoc1dStPtX  sadfoc1dStPtY  sadfoc1dStPtZ\n' +
+                '0  1  2      3     4  5             6                7         8         9         10          11          12          13             14             15             16             17             18')
         fmtList = ['%2u',
                    '%2u',
+                   '%+18.15f',
+                   '%+18.15f',
+                   '%+18.15f',
                    '%+18.15f',
                    '%+18.15f',
                    '%+18.15f',
@@ -79,6 +82,29 @@ def prepareTargetHeteroclinicsData(data):
                 TargetHeteroclinicsData.append((i, j, alpha, beta, r, infoDict['dist'], infoDict['integrationTime'],
                                                 startPtX, startPtY, startPtZ, sadfocPtX, sadfocPtY, sadfocPtZ,
                                                 saddlePtX, saddlePtY, saddlePtZ))
+
+    return TargetHeteroclinicsData
+
+def prepareSfsHeteroclinicsData(data):
+    """
+        Accepts result of running heteroclinics analysis on grid.
+        Expects elements to be tuples in form (i, j, a, b, r, result)
+        """
+    TargetHeteroclinicsData=[]
+    sortedData = sorted(data, key=lambda X: (X[0], X[1]))
+    for d in sortedData:
+        i, j, alpha, beta, r, heterclinInfo = d
+        if heterclinInfo:
+            for info in heterclinInfo:
+                sad, sf1dU, sf1dS, stPt, dist, intTime = info
+                startPtX, startPtY, startPtZ = stPt
+                saddlePtX, saddlePtY, saddlePtZ = sad.coordinates
+                sadfoc1dUnPtX, sadfoc1dUnPtY, sadfoc1dUnPtZ = sf1dU.coordinates
+                sadfoc1dSnPtX, sadfoc1dSnPtY, sadfoc1dSnPtZ = sf1dS.coordinates
+                TargetHeteroclinicsData.append((i, j, alpha, beta, r, dist, intTime,
+                                                startPtX, startPtY, startPtZ, saddlePtX, saddlePtY, saddlePtZ,
+                                                sadfoc1dUnPtX, sadfoc1dUnPtY, sadfoc1dUnPtZ,
+                                                sadfoc1dSnPtX, sadfoc1dSnPtY, sadfoc1dSnPtZ))
 
     return TargetHeteroclinicsData
 
