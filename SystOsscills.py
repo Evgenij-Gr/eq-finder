@@ -74,3 +74,32 @@ class FourBiharmonicPhaseOscillators:
     
     def getParams(self):          
         return [self.paramW,self.paramA,self.paramB,self.paramR]
+
+    def getFullSystemRev(self, phis):
+        rhsPhis = [0, 0, 0, 0]
+        for i in range(4):
+            elem = self.paramW
+            for j in range(4):
+                elem += 0.25 * self.funG(phis[i] - phis[j])
+            rhsPhis[i] = -elem
+        return rhsPhis
+
+    def getReducedSystemRev(self, gammas):
+        gammas = list(gammas)
+        phis = [0] + gammas
+        rhsPhi = self.getFullSystemRev(phis)
+        rhsGamma = [0, 0, 0, 0]
+        for i in range(4):
+            rhsGamma[i] = rhsPhi[i] - rhsPhi[0]
+        return rhsGamma[1:]
+
+    def getRestrictionRev(self, psi):
+        psi = list(psi)
+        gammas = [0] + psi
+        rhsPsi = self.getReducedSystemRev(gammas)
+        return rhsPsi[1:]
+
+    def getRestrictionJacRev(self,X):
+        x,y=X
+        return -1 * np.array([[self.DiagComponentJac2d(x,y), self.NotDiagComponentJac(x,y)],
+                         [ self.NotDiagComponentJac(y,x),self.DiagComponentJac2d(y,x)]])

@@ -356,6 +356,9 @@ def is3DSaddleFocusWith1dS(eq, ps: PrecisionSettings):
 def is3DSaddleWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [2, 0, 1, 0, 0]
 
+def is3DSaddleWith1dS(eq, ps: PrecisionSettings):
+    return eq.getEqType(ps) == [1, 0, 2, 0, 0]
+
 def has1DUnstable(eq, ps: PrecisionSettings):
     return eq.getEqType(ps)[2] == 1
 
@@ -553,7 +556,7 @@ def getSadfocsPairs(eqList, rhs, ps: PrecisionSettings):
             conf.append((sf2DSt, sd2DUnst))
     return conf
 
-def getTargEqs(eqList, rhs, ps: PrecisionSettings):
+def getSf1Sf2Sad(eqList, rhs, ps: PrecisionSettings):
     """
     return all saddle-focus With 1dU, saddle-focus With 1dS and saddle on edge -
     equilibrium states that can participate in the heteroclinic cycle with a ligament between two saddle-foci
@@ -577,6 +580,24 @@ def getTargEqs(eqList, rhs, ps: PrecisionSettings):
 
     return [saddles, sadFocsWith1dU, sadFocsWith1dS]
 
+def getSadSf(eqList, rhs, ps: PrecisionSettings):
+    """
+        return all saddle and saddle-focus With 1dS  on edge -
+        equilibrium states that can participate in the heteroclinic net
+    """
+    saddles = []
+    sadFocsWith1dS = []
+    for eq in eqList:
+        ptOnInvPlane = eq.coordinates
+        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
+        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
+            if (is2DSaddle(eq, ps) and is3DSaddleWith1dS(eqOnPlaneIn3D, ps)):
+                if (eq.coordinates[1] - eq.coordinates[0] < ps.zeroRealPartEps):
+                    saddles.append(eq)
+            elif (isUnstable2DFocus(eq, ps) and is3DSaddleFocusWith1dS(eqOnPlaneIn3D, ps)):
+                sadFocsWith1dS.append(eq)
+
+    return [saddles, sadFocsWith1dS]
 
 def eqCopyOnPlane(eq: Equilibrium, rhsJac, ps: PrecisionSettings):
     x, y, z = eq.coordinates

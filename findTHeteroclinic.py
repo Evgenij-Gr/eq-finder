@@ -177,7 +177,7 @@ def checkHeterocninicSf1Sf2SaddleLig(osc: a4d.FourBiharmonicPhaseOscillators, bo
         allSymmEqs = itls.chain.from_iterable([sf.cirTransform(eq, jacReduced) for eq in eqCoords3D])
     else:
         allSymmEqs = None
-    saddles, sadFocsWith1dU, sadFocsWith1dS = sf.getTargEqs(planeEqCoords, osc, ps)
+    saddles, sadFocsWith1dU, sadFocsWith1dS = sf.getSf1Sf2Sad(planeEqCoords, osc, ps)
     finalInfo = []
     cnctInfo = []
     if (saddles and sadFocsWith1dU and sadFocsWith1dS):
@@ -222,3 +222,45 @@ def checkHeterocninicSf1Sf2SaddleLig(osc: a4d.FourBiharmonicPhaseOscillators, bo
                     finalInfo.append([sad, sf1dU, sf1dS, stPt, dist, intTime])
 
     return finalInfo
+
+def checkHeterocninicNet(osc: a4d.FourBiharmonicPhaseOscillators, borders, bounds, eqFinder, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, maxTime, withEvents = False):
+    rhsInvPlane = osc.getRestriction
+    jacInvPlane = osc.getRestrictionJac
+    rhsReduced = osc.getReducedSystem
+    jacReduced = osc.getReducedSystemJac
+    rhsInvPlaneRev = osc.getRestrictionRev
+    jacInvPlaneRev = osc.getRestrictionJacRev
+
+    planeEqCoords = sf.findEquilibria(rhsInvPlane, jacInvPlane, bounds, borders, eqFinder, ps)
+
+    if withEvents:
+        eqCoords3D = sf.listEqOnInvPlaneTo3D(planeEqCoords, osc)
+        allSymmEqs = itls.chain.from_iterable([sf.cirTransform(eq, jacReduced) for eq in eqCoords3D])
+    else:
+        allSymmEqs = None
+
+    saddles, sadFocsWith1dS = sf.getSadSf(planeEqCoords, osc, ps)
+    sadRev = [sf.getEquilibriumInfo(eq.coordinates, jacInvPlaneRev) for eq in saddles]
+    sadfocRev = [sf.getEquilibriumInfo(eq.coordinates, jacInvPlaneRev) for eq in sadFocsWith1dS]
+    cnctInfo = []
+
+    if len(sadRev) > 1 and sadfocRev:
+        #print(f"Число комбинаций {len(sadRev)*len(sadfocRev)}\n Число седел {len(sadRev)} \n Число фокусов {len(sadfocRev)}\n Параметры {osc.getParams()}\n")
+        if(len(sadRev)*len(sadfocRev) < 1000):
+            pairEqToCnct = itertools.product(sadRev, sadfocRev)
+            cnctInfo = checkSeparatrixConnection(pairEqToCnct, ps, proxs, rhsInvPlaneRev, jacInvPlaneRev,
+                                                 sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
+                                                 sf.anyNumber, proxs.toSinkPrxty, maxTime, listEqCoords=planeEqCoords)
+
+
+    # newPairs = {(sf.getEquilibriumInfo(it['alpha'].coordinates, jacInvPlane),
+    #              sf.getEquilibriumInfo(it['omega'].coordinates, jacInvPlane)) for it in cnctInfo}
+    #
+    # finalInfo = checkSeparatrixConnection(newPairs, ps, proxs, rhsReduced, jacReduced, sf.embedBackTransform,
+    #                                       sf.pickCirSeparatrix, sf.cirTransform, sf.hasExactly(1), proxs.toSddlPrxty,
+    #                                       maxTime, listEqCoords=allSymmEqs)
+    #
+    # if(len(finalInfo) < 2):
+    #     finalInfo = []
+
+    return cnctInfo
