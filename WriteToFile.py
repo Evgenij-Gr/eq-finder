@@ -1,7 +1,11 @@
 import numpy as np
 import systems_fun as sf
 import findTHeteroclinic as FH
-import time
+import TwoPendulumsSystemFun as tpsf
+import itertools as itls
+from functools import partial
+import multiprocessing as mp
+
 
 class TwoOscillators:
     def __init__(self, Gamma, Lambda, paramK):
@@ -39,41 +43,61 @@ def mapBackTo4D(fis):
     return [fi1, 0., fi2, 0.]
 
 
+ep = sf.EnvironmentParameters('C:/Users/User/eq-finder/output_files/Eq List', 'eq', 'Image')
+
 boundsType = [(-0.1, 2*np.pi+0.1), (-0.1, 2*np.pi+0.1)]
 bordersType = [(-1e-15, +2 * np.pi + 1e-15), (-1e-15, +2 * np.pi + 1e-15)]
 
-# Gamma = 0.97
-# Lambda = 0.2
-paramK = 0.06
+# paramK = 0.06
+# N = 5
+# M = 5
+# Gamma = np.linspace(0., 1.5, N)
+# Lambda = np.linspace(0., 1.5, M)
+# #np.savetxt('someFile.txt', [[], []], fmt='%+18.15f')
+#
+# i = 0
+# for paramGamma in Gamma:
+#     j = 0
+#     for paramLambda in Lambda:
+#
+#         Sys = TwoOscillators(paramGamma, paramLambda, paramK)
+#         TestJacType = Sys.JacType
+#         TestRhsType = Sys.ReducedSystem
+#         TestRhs = Sys.FullSystem
+#         Eq = sf.findEquilibria(TestRhsType, TestJacType, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
+#
+#         for eq in Eq:
+#             eq.coordinates = mapBackTo4D(eq.coordinates)
+#
+#         sf.writeToFileEqList(ep, Eq, [paramGamma, paramLambda], "{:0>5}_{:0>5}".format(i, j), sf.STD_PRECISION)
+#         j+=1
+#     i+= 1
+# sf.createBifurcationDiag(ep, N, M, Gamma, Lambda)
 
-Gamma = np.linspace(0.89, 0.99, 4)
-Lambda = np.linspace(0.15, 0.25, 4)
-InfoFile = open('C:/Users/User/my work)/InfoTwoOscillators2.txt', 'w+')
-start = time.time()
-for paramGamma in Gamma:
-    for paramLambda in Lambda:
-        InfoFile.write('Gamma = {}, Lambda = {}  '.format(paramGamma, paramLambda))
 
-        Sys = TwoOscillators(paramGamma, paramLambda, paramK)
-        TestJacType = Sys.JacType
-        TestRhsType = Sys.ReducedSystem
-        TestRhs = Sys.FullSystem
-        Eq = sf.findEquilibria(TestRhsType, TestJacType, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
+def parallEqList(params, paramK):
+    (i, Gamma), (j, Lambda) = params
+    Sys = TwoOscillators(Gamma, Lambda, paramK)
+    TestJacType = Sys.JacType
+    TestRhsType = Sys.ReducedSystem
+    TestRhs = Sys.FullSystem
+    Eq = sf.findEquilibria(TestRhsType, TestJacType, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10),
+                           sf.STD_PRECISION)
 
-        for eq in Eq:
-            eq.coordinates = mapBackTo4D(eq.coordinates)
+    for eq in Eq:
+        eq.coordinates = mapBackTo4D(eq.coordinates)
 
-        newEq = []
-        for eq in Eq:
-            if (sf.is4DSaddleFocusWith1dU(eq, sf.STD_PRECISION)):
-                newEq.append(eq)
+    sf.writeToFileEqList(ep, Eq, [Gamma, Lambda], "{:0>5}_{:0>5}".format(i, j), sf.STD_PRECISION)
 
-        pairsToCheck = [newEq]
-        info = FH.checkSeparatrixConnection(pairsToCheck, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
-                                            TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
-                                            sf.anyNumber, 10, 500., listEqCoords = None)
-        for i in info:
-            InfoFile.write('dist = {}  '.format(i['dist']))
-        InfoFile.write('\n')
-end = time.time()
-print("Took {}s".format(end - start))
+
+if __name__ == "__main__":
+    configFile = open('C:/Users/User/eq-finder/config.txt', 'r')
+    configDict = eval(configFile.read())
+    N, M, gammas, lambdas, paramK = tpsf.get_grid(configDict)
+
+    pool = mp.Pool(mp.cpu_count())
+    pool.map(partial(parallEqList, paramK=paramK),
+                   itls.product(enumerate(gammas), enumerate(lambdas)))
+    pool.close()
+
+    sf.createBifurcationDiag(ep, N, M, gammas, lambdas)

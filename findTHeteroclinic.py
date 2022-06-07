@@ -3,7 +3,7 @@ from collections import defaultdict
 import itertools as itls
 import SystOsscills as a4d
 from scipy.spatial import distance
-import TwoOscillatorsSystemFun
+import TwoPendulumsSystemFun
 
 
 def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, sepCondition, eqTransformer, sepNumCondition, sepProximity, maxTime, periodDistance, listEqCoords = None):
@@ -35,7 +35,7 @@ def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.
         for omegaEqTr in fullOmegaEqsTr:
             for i, separatrix in enumerate(separatrices):
                 if periodDistance == 1:
-                    dist = TwoOscillatorsSystemFun.Distance4D(separatrix, omegaEqTr.coordinates)
+                    dist = TwoPendulumsSystemFun.Distance4D(separatrix, omegaEqTr.coordinates)
                 else:
                     dist = distance.cdist(separatrix, [omegaEqTr.coordinates]).min()
 

@@ -117,18 +117,19 @@ def describeEqType(eigvals, ps: PrecisionSettings):
 
 
 def describePortrType(arrEqSignatures):
-    phSpaceDim = int(sum(arrEqSignatures[0]))
-    eqTypes = {(i, phSpaceDim - i): 0 for i in range(phSpaceDim + 1)}
-    nonRough = 0
-    for eqSign in arrEqSignatures:
-        nS, nC, nU = eqSign
-        if nC == 0:
-            eqTypes[(nU, nS)] += 1
-        else:
-            nonRough += 1
-    # nSinks, nSaddles, nSources,  nNonRough
-    portrType = tuple([eqTypes[(i, phSpaceDim - i)] for i in range(phSpaceDim + 1)] + [nonRough])
-    return portrType
+    if arrEqSignatures:
+        phSpaceDim = int(sum(arrEqSignatures[0]))
+        eqTypes = {(i, phSpaceDim - i): 0 for i in range(phSpaceDim + 1)}
+        nonRough = 0
+        for eqSign in arrEqSignatures:
+            nS, nC, nU = eqSign
+            if nC == 0:
+                eqTypes[(nU, nS)] += 1
+            else:
+                nonRough += 1
+        # nSinks, nSaddles, nSources,  nNonRough
+        portrType = tuple([eqTypes[(i, phSpaceDim - i)] for i in range(phSpaceDim + 1)] + [nonRough])
+        return portrType
 
 
 class ShgoEqFinder:
@@ -263,28 +264,38 @@ def filterEq(listEquilibria, ps: PrecisionSettings):
     return indicesUniqueEq(clustering.labels_, data)
 
 
-def writeToFileEqList(envParams: EnvironmentParameters, EqList, params, nameOfFile):
+def writeToFileEqList(envParams: EnvironmentParameters, EqList, params, nameOfFile, ps: PrecisionSettings):
     sol = []
     for eq in EqList:
-        sol.append(eq.strToFile())
+        sol.append(eq.strToFile(ps))
     headerStr = ('gamma = {par[0]}\n' +
-                 'd = {par[1]}\n' +
-                 'X  Y  nS  nC  nU  isSComplex  isUComplex  Re(eigval1)  Im(eigval1)  Re(eigval2)  Im(eigval2)\n' +
-                 '0  1  2   3   4   5           6           7            8            9            10').format(
+                 'lambda = {par[1]}\n' +
+                 'fi1              V1                 fi2                V2                  nS nC nU isSComplex  isUComplex   Re(eigval1)        Im(eigval1)        Re(eigval2)        Im(eigval2)        Re(eigval3)        Im(eigval3)        Re(eigval4)        Im(eigval4)\n' +
+                 '0                1                  2                  3                   4  5  6  7           8            9                  10                 11                 12                 13                 14                 15                 16').format(
         par=params)
     fmtList = ['%+18.15f',
                '%+18.15f',
+               '%+18.15f',
+               '%+18.15f',
                '%2u',
                '%2u',
                '%2u',
-               '%2u',
-               '%2u',
+               '%2u         ',
+               '%2u           ',
                '%+18.15f',
                '%+18.15f',
                '%+18.15f',
-               '%+18.15f', ]
-    np.savetxt("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), sol, header=headerStr,
+               '%+18.15f',
+               '%+18.15f',
+               '%+18.15f',
+               '%+18.15f',
+               '%+18.15f']
+    if EqList:
+        np.savetxt("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), sol, header=headerStr,
                fmt=fmtList)
+    else:
+        with open("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), "w+") as f:
+            f.write("\n")
 
 
 def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, numberValuesParam2, arrFirstParam,
@@ -295,7 +306,7 @@ def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, 
     curTypeNumber = 0
     for i in range(M):
         for j in range(N):
-            data = np.loadtxt('{}{:0>5}_{:0>5}.txt'.format(envParams.pathToOutputDirectory, i, j), usecols=(2, 3, 4));
+            data = np.loadtxt('{}{:0>5}_{:0>5}.txt'.format(envParams.pathToOutputDirectory, i, j), usecols=(4, 5, 6));
             curPhPortrType = describePortrType(data.tolist())
             if curPhPortrType not in diffTypes:
                 diffTypes[curPhPortrType] = curTypeNumber
@@ -303,6 +314,8 @@ def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, 
             colorGrid[j][i] = diffTypes[curPhPortrType]
     plt.pcolormesh(arrFirstParam, arrSecondParam, colorGrid, cmap=plt.cm.get_cmap('RdBu'))
     plt.colorbar()
+    plt.xlabel(r'$ \Gamma $')
+    plt.ylabel(r'$ \Lambda $')
     plt.savefig('{}{}.pdf'.format(envParams.pathToOutputDirectory, envParams.imageStamp))
 
 
@@ -352,6 +365,8 @@ def is3DSaddleWith1dU(eq, ps: PrecisionSettings):
 #НОВАЯ ФУНКЦИЯ ДЛЯ ОПРЕДЕЛЕНИЯ СЕДЛОФОКУСА
 def is4DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [3, 0, 1, 1, 0]
+
+
 
 def has1DUnstable(eq, ps: PrecisionSettings):
     return eq.getEqType(ps)[2] == 1
@@ -464,7 +479,6 @@ def isSourсe(eq, ps: PrecisionSettings):
 
 def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
     listEvents = []
-
     for eq in eqList:
         if eq.coordinates != startEq.coordinates:
             isTargetEq = False
