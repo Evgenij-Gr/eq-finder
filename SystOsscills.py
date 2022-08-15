@@ -2,18 +2,18 @@ import numpy as np
 
 class FourBiharmonicPhaseOscillators:
     def __init__(self, paramW, paramA, paramB, paramR):
-        self.paramW = paramW
-        self.paramA = paramA
-        self.paramB = paramB
-        self.paramR = paramR
+        self.w = paramW
+        self.a = paramA
+        self.b = paramB
+        self.r = paramR
 
     def funG(self, fi):
-        return -np.sin(fi + self.paramA) + self.paramR * np.sin(2 * fi + self.paramB)
+        return -np.sin(fi + self.a) + self.r * np.sin(2 * fi + self.b)
 
     def getFullSystem(self, phis):
         rhsPhis = [0,0,0,0]        
         for i in range(4):
-            elem = self.paramW
+            elem = self.w
             for j in range(4):
                 elem += 0.25 * self.funG(phis[i]-phis[j])
             rhsPhis[i] = elem
@@ -37,27 +37,27 @@ class FourBiharmonicPhaseOscillators:
     def DiagComponentJac2d(self, x,y):
         
         
-        return (2*(-np.cos(x + self.paramA) + 2*self.paramR * np.cos(2 * x + self.paramB)) +
-                (-np.cos(x-y + self.paramA) + 2*self.paramR * np.cos(2 * (x-y) + self.paramB)) -
-                (np.cos((-x) + self.paramA) - 2*self.paramR * np.cos(2 * (-x) + self.paramB))
-               )/4
+        return (2 * (-np.cos(x + self.a) + 2 * self.r * np.cos(2 * x + self.b)) +
+                (-np.cos(x - y + self.a) + 2 * self.r * np.cos(2 * (x - y) + self.b)) -
+                (np.cos((-x) + self.a) - 2 * self.r * np.cos(2 * (-x) + self.b))
+                )/4
     def NotDiagComponentJac(self, x,y):
         
-        return ((np.cos(x-y + self.paramA) - 2*self.paramR * np.cos(2 * (x-y) + self.paramB)) -
-                (np.cos((-y) + self.paramA) - 2*self.paramR * np.cos(2 * (-y) + self.paramB))
-               )/4
+        return ((np.cos(x - y + self.a) - 2 * self.r * np.cos(2 * (x - y) + self.b)) -
+                (np.cos((-y) + self.a) - 2 * self.r * np.cos(2 * (-y) + self.b))
+                )/4
     
     def DiagComponentJac3d(self, x,y,z):
         
         
         return (
-            (-np.cos(x + self.paramA) + 2*self.paramR * np.cos(2 * x + self.paramB)) +
-                
-            (-np.cos(x-y + self.paramA) + 2*self.paramR * np.cos(2 * (x-y) + self.paramB))+
-                
-            (-np.cos(x-z + self.paramA) + 2*self.paramR * np.cos(2 * (x-z) + self.paramB))-
-                
-            (np.cos((-x) + self.paramA) - 2*self.paramR * np.cos(2 * (-x) + self.paramB))
+                       (-np.cos(x + self.a) + 2 * self.r * np.cos(2 * x + self.b)) +
+
+                       (-np.cos(x - y + self.a) + 2 * self.r * np.cos(2 * (x - y) + self.b)) +
+
+                       (-np.cos(x - z + self.a) + 2 * self.r * np.cos(2 * (x - z) + self.b)) -
+
+                       (np.cos((-x) + self.a) - 2 * self.r * np.cos(2 * (-x) + self.b))
                )/4
         
     def getRestrictionJac(self,X):  
@@ -73,12 +73,12 @@ class FourBiharmonicPhaseOscillators:
                         ])
     
     def getParams(self):          
-        return [self.paramW,self.paramA,self.paramB,self.paramR]
+        return [self.w, self.a, self.b, self.r]
 
     def getFullSystemRev(self, phis):
         rhsPhis = [0, 0, 0, 0]
         for i in range(4):
-            elem = self.paramW
+            elem = self.w
             for j in range(4):
                 elem += 0.25 * self.funG(phis[i] - phis[j])
             rhsPhis[i] = -elem
@@ -103,3 +103,10 @@ class FourBiharmonicPhaseOscillators:
         x,y=X
         return -1 * np.array([[self.DiagComponentJac2d(x,y), self.NotDiagComponentJac(x,y)],
                          [ self.NotDiagComponentJac(y,x),self.DiagComponentJac2d(y,x)]])
+
+    def setParams(self, paramDict):
+        for key in paramDict:
+            if hasattr(self, key):
+                setattr(self, key, paramDict[key])
+            else:
+                raise KeyError(f"System has no parameter '{key}'")
