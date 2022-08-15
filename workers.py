@@ -28,7 +28,7 @@ HETEROSF1SF2COLS = ['distTrajToEq', 'integrationTime',
                  'sadfoc1dUnPtX', 'sadfoc1dUnPtY', 'sadfoc1dUnPtZ',
                  'sadfoc1dSnPtX', 'sadfoc1dSnPtY', 'sadfoc1dSnPtZ']
 
-heteroCols = {'targetHeteroclinic': TARGETHETEROCLINICCOLS, 'heteroclinicSf1Sf': HETEROSF1SF2COLS}
+heteroCols = {'targetHeteroclinic': TARGETHETEROCLINICCOLS, 'heteroclinicSf1Sf2': HETEROSF1SF2COLS}
 
 bounds = [(-0.1, +2 * np.pi + 0.1), (-0.1, +2 * np.pi + 0.1)]
 bordersEq = [(-1e-15, +2 * np.pi + 1e-15), (-1e-15, +2 * np.pi + 1e-15)]

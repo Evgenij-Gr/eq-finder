@@ -1,0 +1,52 @@
+defaultSystem:
+  a: 1
+  b: -1.284
+  r: 1
+grid:
+  first:
+    max: -1.689
+    steps: 3
+    name: "a"
+    min: -1.709
+    caption: "\\alpha"
+solver:
+  nSamp: 1000
+  nIters: 1
+  zeroToCompare: 1.0e-10
+
+Parameters:
+  useEvents: True
+  maxTime: 1000
+
+task: "heteroclinicSf1Sf2"
+
+NumericTolerance:
+  zeroImagPartEps: 1.0e-14
+  zeroRealPartEps: 1.0e-9
+  clustDistThreshold: 1.0e-05
+  marginBorder: -1.0e-05
+
+SeparatrixComputing:
+  separatrixShift: 1.0e-05
+  separatrix_rTol: 1.0e-11
+  separatrix_aTol: 1.0e-11
+
+ConnectionProximity:
+  toSinkPrxtyEv: 1.0e-6
+  toSddlPrxtyEv: 1.0e-3
+  toTargetSinkPrxtyEv: 9.0e-6
+  toTargetSddlPrxtyEv: 9.0e-3
+  toSinkPrxty: 1.1e-5
+  toSddlPrxty: 1.1e-2
+
+output:
+  directory: "./output_files/HeteroclinicFiles/"
+  mask: "het_Sf1Sf2_single"
+  useTimestamp: "ignore"
+  imageExtension: "png"
+
+misc:
+  plotParams:
+    labelFontsize: 20
+    titleFontsize: 20
+    markerSize: 10
