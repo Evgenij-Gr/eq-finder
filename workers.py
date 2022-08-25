@@ -142,7 +142,8 @@ def postTargetHeteroclinicMap(configDict, initResult, workerResult, grid: list[l
             titleImg += "{} = {} ".format(par, configDict['defaultSystem'][par])
         hetParamVal = [e[paramName] for e in sortWorkerResult if e['distTrajToEq']]
 
-        pf.plotHeteroclinicGraph(paramNameImg, titleImg,  outImgName, paramLims, hetParamVal, pltDict)
+        if(hetParamVal):
+            pf.plotHeteroclinicGraph(paramNameImg, titleImg,  outImgName, paramLims, hetParamVal, pltDict)
     elif len(grid) == 2:
         paramXs = grid[0]
         paramYs = grid[1]
@@ -226,7 +227,8 @@ def postHeteroclinicSf1Sf2Map(configDict, initResult, workerResult, grid: list[l
             titleImg += "{} = {} ".format(par, configDict['defaultSystem'][par])
         hetParamVal = [e[paramName] for e in sortWorkerResult if e['distTrajToEq']]
 
-        pf.plotHeteroclinicGraph(paramNameImg, titleImg,  outImgName, paramLims, hetParamVal, pltDict)
+        if(hetParamVal):
+            pf.plotHeteroclinicGraph(paramNameImg, titleImg,  outImgName, paramLims, hetParamVal, pltDict)
     elif len(grid) == 2:
         paramXs = grid[0]
         paramYs = grid[1]
