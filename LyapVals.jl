@@ -28,9 +28,11 @@ end
 
 if !isempty(result)
         headerStr = (
-                "i  j  alpha  beta  r  LyapunovVal\n0  1  2      3     4  5")
+                "i  j  alpha  beta  r  LyapunovVal_1  LyapunovVal_2  LyapunovVal_3\n0  1  2      3     4  5              6              7")
         fmtList = ["%2u",
                    "%2u",
+                   "%+18.15f",
+                   "%+18.15f",
                    "%+18.15f",
                    "%+18.15f",
                    "%+18.15f",

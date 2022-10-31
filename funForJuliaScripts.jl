@@ -88,7 +88,7 @@ end
 end
 
 
-function getLyapunovData(params)
+function getLyapunovVal(params)
     i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
     if (rhsInfNormVal > 1e-7)
         a4d = ContinuousDynamicalSystem(reducedSystem, rand(3), [0.5,a,b,r], reducedSystemJac)
@@ -186,4 +186,22 @@ function getPtOnAttr(params)
     return[i, j, a, b, r, lastPt[1], lastPt[2], lastPt[3], norm(getReducedSystem(a4d, lastPt),Inf)]
 end
 
+function prepareData(dataToPrep)
+    data = Vector[dataToPrep[1,:]]
+    for i in 2:size(dataToPrep[:,1])[1]
+                    data=hcat(data,[dataToPrep[i,:]])
+    end
+    data
+end
+
+function getLyapunovData(params)
+    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
+    if (rhsInfNormVal > 1e-7)
+        a4d = ContinuousDynamicalSystem(reducedSystem, rand(3), [0.5,a,b,r], reducedSystemJac)
+        λλ = lyapunov(a4d, 100000.0, u0 = [startPtX, startPtY, startPtZ], dt = 0.1, Ttr = 10.0)
+    else
+        λλ = [-1,Nan,Nan]
+    end
+    return[i, j, a, b, r, λλ[1], λλ[2], λλ[3]]
+end
 end
