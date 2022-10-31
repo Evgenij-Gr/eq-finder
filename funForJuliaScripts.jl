@@ -198,9 +198,9 @@ function getLyapunovData(params)
     i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
     if (rhsInfNormVal > 1e-7)
         a4d = ContinuousDynamicalSystem(reducedSystem, rand(3), [0.5,a,b,r], reducedSystemJac)
-        λλ = lyapunov(a4d, 100000.0, u0 = [startPtX, startPtY, startPtZ], dt = 0.1, Ttr = 10.0)
+        λλ = lyapunovspectrum(a4d, 100000.0, u0 = [startPtX, startPtY, startPtZ], dt = 0.1, Ttr = 10.0)
     else
-        λλ = [-1,Nan,Nan]
+        λλ = [-1, -1, -1]
     end
     return[i, j, a, b, r, λλ[1], λλ[2], λλ[3]]
 end
