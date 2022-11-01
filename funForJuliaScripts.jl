@@ -1,5 +1,5 @@
 module FunForJulia
-export reducedSystem, getLyapunovData, getPtOnAttr, getClassOfSymm
+export reducedSystem, reducedSystemJac, getLyapunovData, getPtOnAttr, getClassOfSymm, getLyapunovVal
 
 using PyCall
 using DynamicalSystems
@@ -84,7 +84,7 @@ end
 @inline @inbounds function reducedSystemJac(u, p, t)
     w,α,β,ρ = p
     rhs = FourBiharmonicPhaseOscillators(w,α,β,ρ)
-    return @SMatrix [getReducedSystemJac(rhs, u)]
+    return getReducedSystemJac(rhs, u)
 end
 
 
