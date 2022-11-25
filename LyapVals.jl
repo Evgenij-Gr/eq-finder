@@ -3,17 +3,11 @@ using Distributed
 addprocs(8)
 @everywhere using PyCall
 @everywhere np =  pyimport("numpy")
-@everywhere heteroclinicsData = np.loadtxt($(ARGS[1]))
-@everywhere function prepareData(dataToPrep)
-    data = Vector[dataToPrep[1,:]]
-    for i in 2:size(dataToPrep[:,1])[1]
-                    data=hcat(data,[dataToPrep[i,:]])
-    end
-    data
-end
-@everywhere data = prepareData(heteroclinicsData)
+@everywhere attrData = np.loadtxt($(ARGS[1]))
 @everywhere include("funForJuliaScripts.jl")
 @everywhere using Main.FunForJulia
+
+@everywhere data = prepareData(attrData)
 
 using Dates
 timeOfRun = Dates.format(now(), "yyyy-mm-dd_HH-MM-SS")

@@ -1,5 +1,5 @@
 module FunForJulia
-export reducedSystem, reducedSystemJac, getLyapunovData, getPtOnAttr, getClassOfSymm, getLyapunovVal
+export reducedSystem, reducedSystemJac, getLyapunovData, getPtOnAttr, getClassOfSymm, getLyapunovVal, prepareData
 
 using PyCall
 using DynamicalSystems
