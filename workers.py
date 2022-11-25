@@ -118,7 +118,7 @@ def workerTargetHeteroclinicMap(gridNode: tuple[GridPoint], config, timeStamp, i
 def postTargetHeteroclinicMap(configDict, initResult, workerResult, grid: list[list[GridPoint]], startTime):
     workerResult = list(itls.chain.from_iterable(workerResult))
     # adjust outName
-    outTxtName = makeFinalOutname(configDict, initResult, 'txt', None)
+    outTxtName = makeFinalOutname(configDict, initResult, 'txt', startTime)
     df = pd.DataFrame(workerResult)
     gridParamNames = [g[0].name for g in grid]
     indexColumns = [ind for ind, _ in zip(['i', 'j'], gridParamNames)]
