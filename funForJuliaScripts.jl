@@ -1,5 +1,5 @@
 module FunForJulia
-export reducedSystem, reducedSystemJac, getLyapunovData, getPtOnAttr, getClassOfSymm, getLyapunovVal, prepareData
+export reducedSystem, reducedSystemJac, getLyapunovData, getPtOnAttr, getClassOfSymm, getLyapunovVal, prepareData, initGrid, parallelPullingAttractors
 
 using PyCall
 using DynamicalSystems
@@ -203,5 +203,54 @@ function getLyapunovData(params)
         λλ = [-1, -1, -1]
     end
     return[i, j, a, b, r, λλ[1], λλ[2], λλ[3]]
+end
+
+function initGrid(dictGridData)
+    initPoint = dictGridData["initPoint"]
+
+    a_min = dictGridData["a_min"]
+    a_max = dictGridData["a_max"]
+    a_part = dictGridData["a_part"]
+    as = LinRange(a_min, a_max, a_part)
+
+    b_min = dictGridData["b_min"]
+    b_max = dictGridData["b_max"]
+    b_part = dictGridData["b_part"]
+    bs = LinRange(b_min, b_max, b_part)
+
+    r = dictGridData["r_val"]
+
+
+    data = []
+    for (i,a) in enumerate(as)
+        for(j, b) in enumerate(bs)
+            append!(data, [i-1., j-1., a, b, r, initPoint[1], initPoint[2], initPoint[3], 1])
+        end
+    end
+    sData = convert(Array{Float64,1}, data)
+    sData = convert(SharedArray,sData)
+end
+
+function parallelPullingAttractors(Arr, n, m, maxTime, evalTs, fun = getPtOnAttr, dataSize = 9)
+    ds = dataSize
+    for k in 2:m
+        stX, stY, stZ = (Arr[(k-2)*ds + 1:k*ds])[6:8]
+
+        i, j, a, b, r, x, y, z, norm = Arr[(k-1)*ds + 1:k*ds]
+
+        Arr[(k-1)*ds + 1:k*ds] = fun([i, j, a, b, r, stX, stY, stZ, maxTime, evalTs])
+    end
+
+    @sync @distributed for k in 1:m
+        for l in 2:n
+
+            stX, stY, stZ = (Arr[(k-1)*ds + 1 + (l-2)*m*ds:(k-1)*ds + (l-2)*m*ds+ds])[6:8]
+
+            i, j, a, b, r, x, y, z, norm = Arr[(k-1)*ds + 1 + (l-1)*m*ds:(k-1)*ds  + (l-1)*m*ds+ds]
+
+            Arr[(k-1)*ds + 1 + (l-1)*m*ds:(k-1)*ds + (l-1)*m*ds+ds] =fun([i, j, a, b, r, stX, stY, stZ, maxTime, evalTs])
+
+        end
+    end
 end
 end
