@@ -24,7 +24,7 @@ jobs:
         
     - name: Install Sklearn
       run: |
-        pip install sklearn  
+        pip install scikit-learn
               
     - name: Install Numpy
       run: |
