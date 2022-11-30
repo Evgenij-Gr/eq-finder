@@ -1,0 +1,22 @@
+task: "pullingAttr"
+
+output:
+  directory: "./output_files/"
+  mask: "test_oar_pul_attrs"
+  useTimestamp: False
+  
+taskParams:
+  maxTime: 10000
+  evalTs: 0
+  
+  a_min: 1.0
+  a_max: 1.1
+  a_part: 12
+  
+  b_min: -1.0
+  b_max: -0.9
+  b_part: 12
+  
+  r_val: 1.0
+  
+  initPoint: [1.4696010227307938, 2.396882670704771, 4.139098561506022]

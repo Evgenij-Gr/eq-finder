@@ -8,6 +8,8 @@ using Combinatorics
 using Distances
 using NumericalIntegration
 using LinearAlgebra
+using SharedArrays
+using Distributed
 
 np = pyimport("numpy")
 

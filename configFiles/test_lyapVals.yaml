@@ -1,0 +1,8 @@
+task: "lyapVals"
+
+pathToData: "./output_files/test_pts.txt"
+
+output:
+  directory: "./output_files/LyapVals/"
+  mask: "lyapValsData"
+  useTimestamp: False
