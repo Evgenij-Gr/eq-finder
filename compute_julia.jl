@@ -14,8 +14,8 @@ addprocs(8)
 @everywhere fmtList_lyapVals = ["%2u", "%2u", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f",]
 @everywhere headerStr_classSym = ("i  j  alpha  beta  r  ClassOfSymmetry\n0  1  2      3     4  5")
 @everywhere fmtList_classSym = ["%s", "%s", "%18s", "%18s", "%s", "%s",]
-@everywhere headerStr_calcStartPts = ("i  j  alpha  beta  r  ptX ptY ptZ infNormRHS\n0  1  2      3     4  5   6   7   8")
-@everywhere fmtList_calcStartPts = ["%2u", "%2u", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f",]
+@everywhere headerStr_calcStartPts = ("i  j  alpha  beta  r  ptX ptY ptZ infNormRHS minDistToEdge\n0  1  2      3     4  5   6   7   8       9")
+@everywhere fmtList_calcStartPts = ["%2u", "%2u", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f", "%+18.15f"]
 
 @everywhere utils_for_tasks = Dict([
 ("lyapVals", Dict([("taskFun", getLyapunovData),

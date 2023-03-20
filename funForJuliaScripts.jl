@@ -185,7 +185,14 @@ function getPtOnAttr(params)
     sol = getSolFullSyst([0.5, a, b, r], [startPtX, startPtY, startPtZ], maxTime, evalTs)
     lastPt = [sol.u[end][2] - sol.u[end][1], sol.u[end][3] - sol.u[end][1], sol.u[end][4] - sol.u[end][1]]
     a4d = FourBiharmonicPhaseOscillators(0.5, a, b, r)
-    return[i, j, a, b, r, lastPt[1], lastPt[2], lastPt[3], norm(getReducedSystem(a4d, lastPt),Inf)]
+    minDistToEdge = π
+    for coords in sol.u
+        phi_1 = coords[2] - coords[1]
+        phi_2 = coords[3] - coords[1]
+        phi_3 = coords[4] - coords[1]
+        minDistToEdge = min(abs(phi_1), abs(phi_2), abs(2*π - phi_3), abs(phi_3 - phi_2), minDistToEdge)
+    end
+    return[i, j, a, b, r, lastPt[1], lastPt[2], lastPt[3], norm(getReducedSystem(a4d, lastPt),Inf), minDistToEdge]
 end
 
 function prepareData(dataToPrep)
@@ -233,7 +240,7 @@ function initGrid(dictGridData)
     sData = convert(SharedArray,sData)
 end
 
-function parallelPullingAttractors(Arr, n, m, maxTime, evalTs, fun = getPtOnAttr, dataSize = 9)
+function parallelPullingAttractors(Arr, n, m, maxTime, evalTs, fun = getPtOnAttr, dataSize = 10)
     ds = dataSize
     for k in 2:m
         stX, stY, stZ = (Arr[(k-2)*ds + 1:k*ds])[6:8]
