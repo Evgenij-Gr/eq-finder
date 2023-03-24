@@ -2,9 +2,25 @@ import numpy as np
 import systems_fun as sf
 import os
 import matplotlib.pyplot as plt
+from math import fmod
+
+
+def toStandartAngle(fi):
+    '''
+    Interprets fi as an angle and converts to standard range of [0, 2\pi]
+    '''
+    newFi = fmod(fi, 2*np.pi)
+    newFi = (newFi + 2*np.pi) if newFi < 0. else newFi
+    return newFi
 
 
 def distanceOnCircle(fi1, fi2):
+    '''
+    Interprets fi1 and fi2 as angles.
+    Measures a distance between two angles on circle.
+    '''
+    fi1 = toStandartAngle(fi1)
+    fi2 = toStandartAngle(fi2)
     dist = min(abs(fi1-fi2), 2*np.pi - abs(fi1-fi2))
     return dist
 
@@ -24,21 +40,25 @@ def Distance4D(separatrix, coordinates):
         arrayDistance.append(dist)
     return min(arrayDistance)
 
+def periodDistance2D(point1, point2):
+    fi1, V1 = point1
+    fi2, V2 = point2
+    dist = np.sqrt((distanceOnCircle(fi1, fi2))**2 + (V1-V1)**2)
+    return dist
 
-# septest = [[4, 0, 0, 0], [2, 0, 0, 0], [3, 0, 0, 0]]
-coordinatestest1 = [1, 2, 3, 4]
-coordinatestest2 = [3, 4, 1, 2]
-coordinatestest3 = [4, 3, 2, 1]
-# print(Distance4D(septest, coordinatestest))
+
+def Distance2D(separatrix, coordinates):
+    arrayDistance = []
+    for point in separatrix:
+        dist = periodDistance2D(point, coordinates)
+        arrayDistance.append(dist)
+    return min(arrayDistance)
 
 
 def T(eqCoords):
     fi1, V1, fi2, V2 = eqCoords
     return [fi2, V2, fi1, V1]
 
-
-# def isSymmetric(eq1, eq2):
-#     return (eq1 == T(eq2))
 
 def symmetricSaddleFocuses(Eq):
     symmetricEq = [eq for eq in Eq if eq.coordinates[0] > eq.coordinates[2]]
@@ -56,9 +76,6 @@ def createPairsToCheck(newEq, rhsJac):
     pairsToCheck = [(eq, applyTtoEq(eq, rhsJac)) for eq in filtSadFocList]
     return pairsToCheck
 
-# print(T(coordinatestest1))
-# print(isSimmetric(coordinatestest1, coordinatestest2))
-# print(isSimmetric(coordinatestest1, coordinatestest3))
 
 def prepareTwoPendulumsHeteroclinicsData(data):
     #(i, j, gamma, lambda, k, result)
@@ -143,3 +160,22 @@ def get_grid(dictConfig):
 
     paramK = dictConfig['Parameters']['Kval']
     return ( N, M, gammas, lambdas, paramK)
+
+
+# def normalize(fi):
+#     if fi > np.pi:
+#         newFi = fmod(fi + np.pi, 2*np.pi) - np.pi
+#     elif fi < -np.pi:
+#         newFi = fmod(fi - np.pi, 2 * np.pi) + np.pi
+#     else:
+#         newFi = fi
+#     return newFi
+
+
+def normalize_fi_vec(vec):
+    new_vec = []
+    for coord in vec:
+        new_coord = toStandartAngle(coord)
+        new_vec.append(new_coord)
+    return new_vec
+

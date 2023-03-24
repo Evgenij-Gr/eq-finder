@@ -23,10 +23,10 @@ def parallWrite(params, paramK, events=False):
     TestRhsType = Sys.ReducedSystem
     TestRhs = Sys.FullSystem
     JacRhs = Sys.Jac
-    Eq = sf.findEquilibria(TestRhsType, TestJacType, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
+    Eq = sf.findEquilibria(TestRhs, JacRhs, TestRhsType, TestJacType, mapBackTo4D, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
 
-    for eq in Eq:
-        eq.coordinates = mapBackTo4D(eq.coordinates)
+    # for eq in Eq:
+    #     eq.coordinates = mapBackTo4D(eq.coordinates)
 
     newEq = [eq for eq in Eq if sf.is4DSaddleFocusWith1dU(eq, sf.STD_PRECISION)]
 
@@ -35,10 +35,15 @@ def parallWrite(params, paramK, events=False):
     else:
         allSymmEqs = None
 
-    pairs_to_check = tpsf.createPairsToCheck(newEq, JacRhs)
+    # pairs_to_check = tpsf.createPairsToCheck(newEq, JacRhs)
+    # cnctInfo = FH.checkSeparatrixConnection(pairs_to_check, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
+    #                                         TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
+    #                                         sf.anyNumber, 0.0063, 1000., tpsf.periodDistance4D, listEqCoords=allSymmEqs)
+    pairs_to_check = [[newEq[0], newEq[0]]]
     cnctInfo = FH.checkSeparatrixConnection(pairs_to_check, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
                                             TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
-                                            sf.anyNumber, 2.2, 2000., 1, listEqCoords=allSymmEqs)
+                                            sf.anyNumber, 1, 1000., tpsf.periodDistance4D, listEqCoords=[newEq[0]])
+
     print('{}-{}'.format(i, j))
 
     return i, j, Gamma, Lambda, paramK, cnctInfo
@@ -80,4 +85,4 @@ if __name__ == "__main__":
     tpsf.saveTwoPendulumsHeteroclinicsDataAsTxt(preparedData, pathToOutputDir, outputFileMask)
     tpsf.plotTwoPendulumsHeteroclinicsData(preparedData, gammas, lambdas, paramK, pathToOutputDir, outputFileMask)
 
-# TODO python parallWriteToFile.py C:\Users\User\eq-finder\config.txt TwoPendulumsHeteroclinicsData C:\Users\User\eq-finder\output_files\TwoPendulums
+# TODO python parallWriteToFile.py C:\Users\User\eq-finder\config.txt TwoPendulumsHeteroclinicsData C:\Users\User\eq-finder\output_files\TwoPendulums\Гомоклиника_карты_расстояний\k=0_06
