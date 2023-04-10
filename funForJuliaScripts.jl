@@ -171,7 +171,7 @@ function getSymmType(params, startPt,  maxT = 20000, evalTs = 0.1)
 end
 
 function getClassOfSymm(params)
-    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
+    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal, minDist = params
     if (rhsInfNormVal > 1e-7)
         T = getSymmType([0.5, a, b, r], [startPtX, startPtY, startPtZ])
     else
@@ -204,7 +204,7 @@ function prepareData(dataToPrep)
 end
 
 function getLyapunovData(params)
-    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
+    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal, minDist = params
     if (rhsInfNormVal > 1e-7)
         a4d = ContinuousDynamicalSystem(reducedSystem, rand(3), [0.5,a,b,r], reducedSystemJac)
         λλ = lyapunovspectrum(a4d, 100000.0, u0 = [startPtX, startPtY, startPtZ], dt = 0.1, Ttr = 10.0)
