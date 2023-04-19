@@ -171,7 +171,7 @@ function getSymmType(params, startPt,  maxT = 20000, evalTs = 0.1)
 end
 
 function getClassOfSymm(params)
-    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal, minDist = params
+    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
     if (rhsInfNormVal > 1e-7)
         T = getSymmType([0.5, a, b, r], [startPtX, startPtY, startPtZ])
     else
@@ -185,14 +185,21 @@ function getPtOnAttr(params)
     sol = getSolFullSyst([0.5, a, b, r], [startPtX, startPtY, startPtZ], maxTime, evalTs)
     lastPt = [sol.u[end][2] - sol.u[end][1], sol.u[end][3] - sol.u[end][1], sol.u[end][4] - sol.u[end][1]]
     a4d = FourBiharmonicPhaseOscillators(0.5, a, b, r)
-    minDistToEdge = π
+    minDistToEdge = 100
+    distToSpSt = 100
+    distToPlank = 100
+    naprVec = [π,0,π]
     for coords in sol.u
         phi_1 = coords[2] - coords[1]
         phi_2 = coords[3] - coords[1]
         phi_3 = coords[4] - coords[1]
         minDistToEdge = min(abs(phi_1), abs(phi_2), abs(2*π - phi_3), abs(phi_3 - phi_2), minDistToEdge)
+        distToSpSt = min(distToSpSt, sqrt((phi_1 - π/2)^2 + (phi_2 - π)^2 + (phi_3 - 3*π/2)^2))
+        vec = [phi_1 - π/2, phi_2 - π, phi_3 - 3*π/2]
+        diffVec = vec - dot(vec, naprVec) * naprVec / dot(naprVec, naprVec)
+        distToPlank = min(distToPlank, sqrt(dot(diffVec, diffVec)))
     end
-    return[i, j, a, b, r, lastPt[1], lastPt[2], lastPt[3], norm(getReducedSystem(a4d, lastPt),Inf), minDistToEdge]
+    return[i, j, a, b, r, lastPt[1], lastPt[2], lastPt[3], norm(getReducedSystem(a4d, lastPt),Inf), minDistToEdge, distToSpSt, distToPlank]
 end
 
 function prepareData(dataToPrep)
@@ -204,7 +211,7 @@ function prepareData(dataToPrep)
 end
 
 function getLyapunovData(params)
-    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal, minDist = params
+    i, j, a, b, r, startPtX, startPtY, startPtZ, rhsInfNormVal = params
     if (rhsInfNormVal > 1e-7)
         a4d = ContinuousDynamicalSystem(reducedSystem, rand(3), [0.5,a,b,r], reducedSystemJac)
         λλ = lyapunovspectrum(a4d, 100000.0, u0 = [startPtX, startPtY, startPtZ], dt = 0.1, Ttr = 10.0)
@@ -212,6 +219,11 @@ function getLyapunovData(params)
         λλ = [-1, -1, -1]
     end
     return[i, j, a, b, r, λλ[1], λλ[2], λλ[3]]
+end
+
+function getSaddleVal(params)
+    i, j, a, b, r = params
+    return[i, j, a, b, r, cos(a)/2 - 2 * r * cos(b)]
 end
 
 function initGrid(dictGridData)
