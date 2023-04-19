@@ -189,7 +189,7 @@ function getPtOnAttr(params)
     distToSpSt = 100
     distToPlank = 100
     naprVec = [π,0,π]
-    for coords in sol.u
+    for coords in sol.u[div(Int(maxTime),5):end]
         phi_1 = coords[2] - coords[1]
         phi_2 = coords[3] - coords[1]
         phi_3 = coords[4] - coords[1]
