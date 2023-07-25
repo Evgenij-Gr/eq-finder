@@ -1,0 +1,34 @@
+pathToData:
+
+output:
+  directory: "./output_files/pictures/"
+  mask: "chaos_scenario_alpha_a4_2"
+  outFileExtension: "pdf"
+  useTimeStamp: False
+  
+plotSettings:
+  symmCopies: 1,2,3
+  widthLine: 1.5
+  cameraParams:
+    up:
+      x: 0.0
+      y: 0.0
+      z: 1.5 
+    center:
+      x: 0.0
+      y: 0.0
+      z: 0.2
+    eye:
+      x: 0.5
+      y: 0.0
+      z: 0.2
+    
+params:
+  a: -2.487
+  b: -1.61268422884276
+  r: 1.0
+startPt:
+  x: 1.422975473348162
+  y: 3.174906328214909
+  z: 4.543547968780502
+maxTime: 20000
