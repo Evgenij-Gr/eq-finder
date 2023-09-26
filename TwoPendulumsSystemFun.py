@@ -161,6 +161,9 @@ def get_grid(dictConfig):
     paramK = dictConfig['Parameters']['Kval']
     return ( N, M, gammas, lambdas, paramK)
 
+def get_gamma_lambda(dictConfig):
+    gamma_min = dictConfig['Parameters']['gamma_min']
+    gamma_max
 
 # def normalize(fi):
 #     if fi > np.pi:

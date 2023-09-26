@@ -42,7 +42,7 @@ def parallWrite(params, paramK, events=False):
     pairs_to_check = [[newEq[0], newEq[0]]]
     cnctInfo = FH.checkSeparatrixConnection(pairs_to_check, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
                                             TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
-                                            sf.anyNumber, 1, 1000., tpsf.periodDistance4D, listEqCoords=[newEq[0]])
+                                            sf.anyNumber, 1, 1000., tpsf.periodDistance4D, listEqCoords=None)
 
     print('{}-{}'.format(i, j))
 

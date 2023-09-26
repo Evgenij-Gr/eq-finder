@@ -5,6 +5,7 @@ import TwoPendulumsSystemFun as tpsf
 import itertools as itls
 from functools import partial
 import multiprocessing as mp
+from MySystem import *
 
 
 class TwoOscillators:
@@ -77,15 +78,13 @@ bordersType = [(-1e-15, +2 * np.pi + 1e-15), (-1e-15, +2 * np.pi + 1e-15)]
 
 def parallEqList(params, paramK):
     (i, Gamma), (j, Lambda) = params
-    Sys = TwoOscillators(Gamma, Lambda, paramK)
-    TestJacType = Sys.JacType
-    TestRhsType = Sys.ReducedSystem
-    TestRhs = Sys.FullSystem
-    Eq = sf.findEquilibria(TestRhsType, TestJacType, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10),
-                           sf.STD_PRECISION)
-
-    for eq in Eq:
-        eq.coordinates = mapBackTo4D(eq.coordinates)
+    Sys = TwoPendulums(Gamma, Lambda, paramK)
+    rhs = Sys.FullSystem
+    jacType = Sys.JacType
+    rhsType = Sys.ReducedSystem
+    rhsJac = Sys.Jac
+    Eq = sf.findEquilibria(rhs, rhsJac, rhsType, jacType, mapBackTo4D, boundsType, bordersType,
+                           sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
 
     sf.writeToFileEqList(ep, Eq, [Gamma, Lambda], "{:0>5}_{:0>5}".format(i, j), sf.STD_PRECISION)
 
@@ -94,10 +93,9 @@ if __name__ == "__main__":
     configFile = open('C:/Users/User/eq-finder/config.txt', 'r')
     configDict = eval(configFile.read())
     N, M, gammas, lambdas, paramK = tpsf.get_grid(configDict)
-
     pool = mp.Pool(mp.cpu_count())
     pool.map(partial(parallEqList, paramK=paramK),
                    itls.product(enumerate(gammas), enumerate(lambdas)))
     pool.close()
 
-    sf.createBifurcationDiag(ep, N, M, gammas, lambdas)
+    sf.createBifurcationDiag(ep, N, M, lambdas, gammas)

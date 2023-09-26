@@ -73,7 +73,7 @@ class ProximitySettings:
 STD_PROXIMITY = ProximitySettings(toSinkPrxtyEv=1e-6,
                                   toSddlPrxtyEv=1e-3,
                                   toTargetSinkPrxtyEv=9*1e-6,
-                                  toTargetSddlPrxtyEv=9*1e-3,
+                                  toTargetSddlPrxtyEv=2*1e-3, #тут было 9e-3
                                   toSinkPrxty=1e-5,
                                   toSddlPrxty=1e-2
                                   )
@@ -94,6 +94,16 @@ class Equilibrium:
         for val in self.eigenvalues:
             eigs += [val.real, val.imag]
         return self.coordinates + self.getEqType(ps) + eigs
+
+    def strToFile_SI(self, ps: PrecisionSettings):
+        eigs = []
+        for val in self.eigenvalues:
+            eigs += [val.real, val.imag]
+        st = self.getLeadSEigRe(ps)
+        unst = self.getLeadUEigRe(ps)
+        sigma = unst - (-1 * st)
+        rho = -st / unst
+        return self.coordinates + self.getEqType(ps) + eigs + [st] + [unst] + [sigma] + [rho]
 
     def getLeadSEigRe(self, ps: PrecisionSettings):
         return max([se.real for se in self.eigenvalues if ps.isEigStable(se)])
@@ -138,11 +148,21 @@ class ShgoEqFinder:
         self.nIters = nIters
         self.eps = eps
 
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        optResult = scipy.optimize.shgo(rhsSq, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
+    def __call__(self, rhs, rhsJac, eqRhs, eqJac, boundaries, borders):
+        def eqRhsSquared(x):
+            xArr = np.array(x)
+            vec = eqRhs(xArr)
+            return np.dot(vec, vec)
+
+        optResult = scipy.optimize.shgo(eqRhsSquared, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
         allEquilibria = [x for x, val in zip(optResult.xl, optResult.funl) if
-                         abs(val) < self.eps and inBounds(x, borders)];
+                         abs(val) < self.eps and inBounds(x, borders)]
         return allEquilibria
+    # def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
+    #     optResult = scipy.optimize.shgo(rhsSq, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
+    #     allEquilibria = [x for x, val in zip(optResult.xl, optResult.funl) if
+    #                      abs(val) < self.eps and inBounds(x, borders)];
+    #     return allEquilibria
 
 
 class NewtonEqFinder:
@@ -234,14 +254,18 @@ def createEqList(allEquilibria, rhsJac, ps: PrecisionSettings):
     return EqList
 
 
-def findEquilibria(rhs, rhsJac, bounds, borders, optMethod, ps: PrecisionSettings):
-    def rhsSq(x):
-        xArr = np.array(x)
-        vec = rhs(xArr)
-        return np.dot(vec, vec)
-
-    allEquilibria = optMethod(rhs, rhsSq, rhsJac, bounds, borders)
+def findEquilibria(rhs, rhsJac, eqRhs, eqJac, embedInPhaseSpace, bounds, borders, optMethod, ps: PrecisionSettings):
+    allEqCoords = optMethod(rhs, rhsJac, eqRhs, eqJac, bounds, borders)
+    allEquilibria = list(map(embedInPhaseSpace, allEqCoords))
     return createEqList(allEquilibria, rhsJac, ps)
+# def findEquilibria(rhs, rhsJac, bounds, borders, optMethod, ps: PrecisionSettings):
+#     def rhsSq(x):
+#         xArr = np.array(x)
+#         vec = rhs(xArr)
+#         return np.dot(vec, vec)
+#
+#     allEquilibria = optMethod(rhs, rhsSq, rhsJac, bounds, borders)
+#     return createEqList(allEquilibria, rhsJac, ps)
 
 
 def inBounds(X, boundaries):
@@ -308,15 +332,18 @@ def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, 
         for j in range(N):
             data = np.loadtxt('{}{:0>5}_{:0>5}.txt'.format(envParams.pathToOutputDirectory, i, j), usecols=(4, 5, 6));
             curPhPortrType = describePortrType(data.tolist())
+            # print(curPhPortrType)
             if curPhPortrType not in diffTypes:
                 diffTypes[curPhPortrType] = curTypeNumber
                 curTypeNumber += 1.
-            colorGrid[j][i] = diffTypes[curPhPortrType]
+            colorGrid[i][j] = diffTypes[curPhPortrType]
+
     plt.pcolormesh(arrFirstParam, arrSecondParam, colorGrid, cmap=plt.cm.get_cmap('RdBu'))
     plt.colorbar()
-    plt.xlabel(r'$ \Gamma $')
-    plt.ylabel(r'$ \Lambda $')
+    plt.xlabel(r'$\gamma$')
+    plt.ylabel(r'$\lambda$')
     plt.savefig('{}{}.pdf'.format(envParams.pathToOutputDirectory, envParams.imageStamp))
+    plt.clf()
 
 
 def indicesUniqueEq(connectedPoints, nSnCnU):
@@ -362,9 +389,12 @@ def is3DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
 def is3DSaddleWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [2, 0, 1, 0, 0]
 
-#НОВАЯ ФУНКЦИЯ ДЛЯ ОПРЕДЕЛЕНИЯ СЕДЛОФОКУСА
+
+
+
 def is4DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [3, 0, 1, 1, 0]
+
 
 
 
@@ -449,7 +479,7 @@ def isInCIR(pt, strictly = False):
 def pickCirSeparatrix(ptCoord, eqCoord):
     return isInCIR(ptCoord)
 
-def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, listEvents = None):
+def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, tSkip, listEvents = None):
     startPts = getInitPointsOnUnstable1DSeparatrix(eq, condition, ps)
     rhs_vec = lambda t, X: rhs(X)
     separatrices = []
@@ -457,12 +487,18 @@ def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, co
     for startPt in startPts:
         sol = solve_ivp(rhs_vec, [0, maxTime], startPt, events=listEvents, rtol=ps.rTol, atol=ps.aTol,
                         dense_output=True)
-        separatrices.append(np.transpose(sol.y))
+        # print(max(sol.t))
+        # print(tSkip)
+        coordsList = list(zip(*sol.y))
+        sepPart = [y for y, t in list(zip(coordsList, sol.t)) if t>tSkip]
+        # print(sepPart)
+        separatrices.append(sepPart)
+        # separatrices.append(np.transpose(sol.y))
         integrationTime.append(sol.t[-1])
     return [separatrices, integrationTime]
 
-def constructDistEvent(x0, eps):
-    evt = lambda t, X: distance.euclidean(x0,X) - eps
+def constructDistEvent(x0, eps, distFunc):
+    evt = lambda t, X: distFunc(x0, X) - eps
     return evt
 
 def isSaddle(eq, ps: PrecisionSettings):
@@ -477,8 +513,39 @@ def isSourсe(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
     return eqType[0] == 0 and eqType[1] == 0
 
-def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
+# def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
+#     listEvents = []
+#     for eq in eqList:
+#         if eq.coordinates != startEq.coordinates:
+#             isTargetEq = False
+#
+#             coords = eq.coordinates
+#
+#             for targetEq in targetEqs:
+#                 if targetEq.coordinates == eq.coordinates:
+#                     isTargetEq = True
+#
+#             if isSaddle(eq, ps):
+#                 if isTargetEq:
+#                     event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv)
+#                 else:
+#                     event = constructDistEvent(coords, proxs.toSddlPrxtyEv)
+#                 event.terminal = True
+#                 event.direction = -1
+#                 listEvents.append(event)
+#             elif isSink(eq, ps):
+#                 if isTargetEq:
+#                     event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv)
+#                 else:
+#                     event = constructDistEvent(coords, proxs.toSinkPrxtyEv)
+#                 event.terminal = True
+#                 event.direction = -1
+#                 listEvents.append(event)
+#
+#     return listEvents
+def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings, distFunc):
     listEvents = []
+
     for eq in eqList:
         if eq.coordinates != startEq.coordinates:
             isTargetEq = False
@@ -491,22 +558,23 @@ def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs:
 
             if isSaddle(eq, ps):
                 if isTargetEq:
-                    event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv, distFunc)
                 else:
-                    event = constructDistEvent(coords, proxs.toSddlPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toSddlPrxtyEv, distFunc)
                 event.terminal = True
                 event.direction = -1
                 listEvents.append(event)
             elif isSink(eq, ps):
                 if isTargetEq:
-                    event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv, distFunc)
                 else:
-                    event = constructDistEvent(coords, proxs.toSinkPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toSinkPrxtyEv, distFunc)
                 event.terminal = True
                 event.direction = -1
                 listEvents.append(event)
 
     return listEvents
+
 
 def idTransform(X, rhsJac):
     """
@@ -535,8 +603,8 @@ def embedBackTransform(X: Equilibrium, rhsJac):
     xNew = embedPointBack(X.coordinates)
     return getEquilibriumInfo(xNew, rhsJac)
 
-def cirTransform(eq: Equilibrium, rhsJac):
-    coords = generateSymmetricPoints(eq.coordinates)
-    return [getEquilibriumInfo(cd, rhsJac) for cd in coords]
+# def cirTransform(eq: Equilibrium, rhsJac):
+#     coords = generateSymmetricPoints(eq.coordinates)
+#     return [getEquilibriumInfo(cd, rhsJac) for cd in coords]
 
 

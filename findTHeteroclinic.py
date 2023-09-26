@@ -6,7 +6,8 @@ from scipy.spatial import distance
 import TwoPendulumsSystemFun
 
 
-def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, sepCondition, eqTransformer, sepNumCondition, sepProximity, maxTime, periodDistance, listEqCoords = None):
+
+def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, sepCondition, eqTransformer, sepNumCondition, sepProximity, maxTime, distFunc, tSkip=0, listEqCoords = None):
     """
     Accepts pairsToCheck — a list of pairs of Equilibria — and checks if there is
     an approximate connection between them. First equilibrium of pair
@@ -26,18 +27,23 @@ def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.
         omegaEqsTr = [phSpaceTransformer(oEq, rhsJac) for oEq in omegaEqs]
         fullOmegaEqsTr = list(itls.chain.from_iterable([eqTransformer(oEq, rhsJac) for oEq in omegaEqsTr]))
         if listEqCoords:
-            events = sf.createListOfEvents(alphaEqTr, fullOmegaEqsTr, listEqCoords, ps, proxs)
-        separatrices, integrTimes = sf.computeSeparatrices(alphaEqTr, rhs, ps, maxTime, sepCondition, events)
+            events = sf.createListOfEvents(alphaEqTr, fullOmegaEqsTr, listEqCoords, ps, proxs, distFunc)
+        separatrices, integrTimes = sf.computeSeparatrices(alphaEqTr, rhs, ps, maxTime, sepCondition, tSkip, events)
 
         if not sepNumCondition(separatrices):
             raise ValueError('Assumption on the number of separatrices is not satisfied')
 
         for omegaEqTr in fullOmegaEqsTr:
             for i, separatrix in enumerate(separatrices):
-                if periodDistance == 1:
-                    dist = TwoPendulumsSystemFun.Distance4D(separatrix, omegaEqTr.coordinates)
-                else:
-                    dist = distance.cdist(separatrix, [omegaEqTr.coordinates]).min()
+                # if periodDistance == 1:
+                #     dist = TwoPendulumsSystemFun.Distance4D(separatrix, omegaEqTr.coordinates)
+                # elif periodDistance == 2:
+                #     dist = TwoPendulumsSystemFun.Distance2D(separatrix[(len(separatrix)-200):], omegaEqTr.coordinates)
+                # elif periodDistance == 3:
+                #     dist = TwoPendulumsSystemFun.Distance4D(separatrix[(len(separatrix)-200):], omegaEqTr.coordinates)
+                # else:
+                #     dist = distance.cdist(separatrix, [omegaEqTr.coordinates]).min()
+                dist = distance.cdist(separatrix, [omegaEqTr.coordinates], distFunc).min()
 
                 if dist < sepProximity:
                     info = {}
