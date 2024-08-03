@@ -1,8 +1,0 @@
-task: "classSymm"
-
-pathToData: "./output_files/test_pts.txt"
-
-output:
-  directory: "./output_files/LyapVals/"
-  mask: "classSymmData"
-  useTimestamp: False

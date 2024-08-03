@@ -1,8 +1,0 @@
-task: "calcStartPts"
-
-pathToData: "./output_files/st_pts.txt"
-
-output:
-  directory: "./output_files/"
-  mask: "test_pts"
-  useTimestamp: False
