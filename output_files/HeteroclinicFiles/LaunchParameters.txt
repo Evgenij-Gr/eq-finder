@@ -1,0 +1,34 @@
+{
+'NumericTolerance':
+{'zeroImagPartEps': 1e-14,
+'zeroRealPartEps': 1e-14,
+'clustDistThreshold': 1e-5,
+'marginBorder': 0.,},
+'SeparatrixComputing':
+{'separatrixShift': 1e-5,
+'separatrix_rTol': 1e-11,
+'separatrix_aTol': 1e-11,},
+'ConnectionProximity':
+{'toSinkPrxtyEv': 1e-6,
+ 'toSddlPrxtyEv': 1e-3,
+ 'toTargetSinkPrxtyEv': 9*1e-6,
+ 'toTargetSddlPrxtyEv': 9*1e-3,
+ 'toSinkPrxty': 1.1*1e-5,
+ 'toSddlPrxty': 1.1*1e-2,
+},
+'ParametersShgoEqFinder':
+{'numOfSamp': 1000,
+'numOfIters': 50,
+'compareWith': 1e-10,
+},
+'Parameters':
+{'rval': 1.0,
+'a_min': -2.911209192326542 -0.1,
+'a_max': -2.911209192326542 +0.1,
+'a_N': 11,
+'b_min': -1.612684228842761 -0.1,
+'b_max': -1.612684228842761 +0.1,
+'b_N': 11,
+'useEvents': True,
+},
+}

@@ -1,0 +1,22 @@
+{
+'NumericTolerance':
+{'zeroImagPartEps': 1e-14,
+'zeroRealPartEps': 1e-14,
+'clustDistThreshold': 1e-5,
+'marginBorder': 0.,},
+'SeparatrixComputing':
+{'separatrixShift': 1e-5,
+'separatrix_rTol': 1e-11,
+'separatrix_aTol': 1e-11,},
+'ConnectionProximity':
+{'toSinkPrxty': 1e-5,
+'toSddlPrxty': 1e-2,},
+'Parameters':
+{'rval': 1.,
+'a_min': -np.pi,
+'a_max': np.pi,
+'a_N': 4,
+'b_min': -np.pi,
+'b_max': np.pi,
+'b_N': 4,},
+}
