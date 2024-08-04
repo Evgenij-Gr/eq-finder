@@ -21,14 +21,7 @@ TARGETHETEROCLINICCOLS = ['distTrajToEq', 'integrationTime',
                'sadfocPtX', 'sadfocPtY', 'sadfocPtZ',
                'saddlePtX', 'saddlePtY', 'saddlePtZ']
 
-
-HETEROSF1SF2COLS = ['distTrajToEq', 'integrationTime',
-                 'startPtX', 'startPtY', 'startPtZ',
-                 'saddlePtX', 'saddlePtY', 'saddlePtZ',
-                 'sadfoc1dUnPtX', 'sadfoc1dUnPtY', 'sadfoc1dUnPtZ',
-                 'sadfoc1dSnPtX', 'sadfoc1dSnPtY', 'sadfoc1dSnPtZ']
-
-heteroCols = {'targetHeteroclinic': TARGETHETEROCLINICCOLS, 'heteroclinicSf1Sf2': HETEROSF1SF2COLS}
+heteroCols = {'targetHeteroclinic': TARGETHETEROCLINICCOLS}
 
 bounds = [(-0.1, +2 * np.pi + 0.1), (-0.1, +2 * np.pi + 0.1)]
 bordersEq = [(-1e-15, +2 * np.pi + 1e-15), (-1e-15, +2 * np.pi + 1e-15)]
@@ -42,7 +35,6 @@ registry = {
 
 registry['init']['targetHeteroclinic'] = prepareOutputDir
 
-registry['init']['heteroclinicSf1Sf2'] = prepareOutputDir
 
 def makeSystem(gridNode, config):
     # extract default parameters
@@ -159,91 +151,6 @@ def postTargetHeteroclinicMap(configDict, initResult, workerResult, grid: list[l
         sysParams.remove(paramName)
 
         titleImg = "Heteroclinic map "
-        for par in sysParams:
-            titleImg += "{} = {} ".format(par, configDict['defaultSystem'][par])
-
-        pf.plotHeteroclinicMap(hetParamVals, paramXVals, paramXNameImg, paramYVals, paramYNameImg, outImgName,
-                               titleImg, pltDict)
-    else:
-        raise Exception("There is no method for such grid!")
-
-@register(registry, 'worker', 'heteroclinicSf1Sf2')
-def workerHeteroclinicSf1Sf2Map(gridNode: tuple[GridPoint], config, timeStamp, initResult):
-    dsys = makeSystem(gridNode, config)
-    # get solver data
-    nSamp = config['solver']['nSamp']
-    nIters = config['solver']['nIters']
-    zeroToCompare = config['solver']['zeroToCompare']
-    eqf = sf.ShgoEqFinder(nSamp, nIters, zeroToCompare)
-    # get task parameters
-    ps = su.getPrecisionSettings(config)
-    prox = su.getProximitySettings(config)
-    evtFlag = config['Parameters']['useEvents']
-    maxTime = config['Parameters']['maxTime']
-    # do the task
-    res = fth.checkHeterocninicSf1Sf2SaddleLig( dsys, bordersEq, bounds, eqf, ps, prox, maxTime, evtFlag)
-    gDict = gridNodeToDict(gridNode)
-    heterInfo = heteroCols[config['task']]
-
-    infoDict = {inf : [] for inf in heterInfo}
-    resDict = {**gDict, **infoDict}
-
-    if res:
-        for info in res:
-            sad, sf1dU, sf1dS, stPt, dist, intTime = info
-            infoVals = list(itls.chain.from_iterable([[dist, intTime], stPt,
-                                                      sad.coordinates, sf1dU.coordinates, sf1dS.coordinates]))
-
-            for i, keyVal in enumerate(heterInfo):
-                resDict[keyVal].append(infoVals[i])
-
-
-    return resDict
-
-@register(registry, 'post', 'heteroclinicSf1Sf2')
-def postHeteroclinicSf1Sf2Map(configDict, initResult, workerResult, grid: list[list[GridPoint]], startTime):
-    # adjust outName
-    outTxtName = makeFinalOutname(configDict, initResult, 'txt', None)
-    df = pd.DataFrame(workerResult)
-    gridParamNames = [g[0].name for g in grid]
-    indexColumns = [ind for ind, _ in zip(['i', 'j'], gridParamNames)]
-    df.sort_values(by=indexColumns)
-    if workerResult:
-        infoParams = heteroCols[configDict['task']]
-        df[indexColumns + gridParamNames + infoParams].to_csv(outTxtName, sep=' ', index=False)
-
-    ext = configDict['output']['imageExtension']
-    outImgName = makeFinalOutname(configDict, initResult, ext, None)
-    pltDict = configDict['misc']['plotParams']
-    sysParams = list(configDict['defaultSystem'].keys())
-    if len(grid) == 1:
-        paramNameImg = configDict['grid']['first']['caption']
-        paramLims = [configDict['grid']['first']['min'], configDict['grid']['first']['max']]
-        sortWorkerResult = sorted(workerResult, key=lambda e: e['i'])
-        paramName = configDict['grid']['first']['name']
-        sysParams.remove(paramName)
-        titleImg = "Heteroclinic Sf1Sf2 graph "
-        for par in sysParams:
-            titleImg += "{} = {} ".format(par, configDict['defaultSystem'][par])
-        hetParamVal = [e[paramName] for e in sortWorkerResult if e['distTrajToEq']]
-
-        if(hetParamVal):
-            pf.plotHeteroclinicGraph(paramNameImg, titleImg,  outImgName, paramLims, hetParamVal, pltDict)
-    elif len(grid) == 2:
-        paramXs = grid[0]
-        paramYs = grid[1]
-        paramXNameImg = configDict['grid']['first']['caption']
-        paramYNameImg = configDict['grid']['second']['caption']
-        paramXVals = [gn.val for gn in paramXs]
-        paramYVals = [gn.val for gn in paramYs]
-        hetParamVals = [(e['i'], e['j']) for e in workerResult if e['distTrajToEq']]
-
-        paramName = configDict['grid']['first']['name']
-        sysParams.remove(paramName)
-        paramName = configDict['grid']['second']['name']
-        sysParams.remove(paramName)
-
-        titleImg = "Heteroclinic Sf1Sf2 map "
         for par in sysParams:
             titleImg += "{} = {} ".format(par, configDict['defaultSystem'][par])
 

@@ -1,32 +1,4 @@
-import numpy as np
 import systems_fun as sf
-
-def getGridR(dictConfig):
-    N = dictConfig['Parameters']['r_N']  # Количество разбиений параметра r
-
-    rs = np.linspace(dictConfig['Parameters']['r_min'], dictConfig['Parameters']['r_max'], N)
-
-    a = dictConfig['Parameters']['aval']
-    b = dictConfig['Parameters']['bval']
-    return (N, a, b, rs)
-
-def getGrid(dictConfig):
-    N = dictConfig['Parameters']['a_N']  # Количество разбиений параметра альфа
-    M = dictConfig['Parameters']['b_N']  # Количество разбиений параметра бета
-
-    alphas = np.linspace(dictConfig['Parameters']['a_min'], dictConfig['Parameters']['a_max'], N)
-    betas = np.linspace(dictConfig['Parameters']['b_min'], dictConfig['Parameters']['b_max'], M)
-
-    r = dictConfig['Parameters']['rval']
-    return ( N, M, alphas, betas, r)
-
-def getParamsSHGO(dictConfig):
-
-    numOfSamp = dictConfig['ParametersShgoEqFinder']['numOfSamp']
-    numOfIters = dictConfig['ParametersShgoEqFinder']['numOfIters']
-    valToCompareWith = dictConfig['ParametersShgoEqFinder']['compareWith']
-
-    return(numOfSamp, numOfIters, valToCompareWith)
 
 def getPrecisionSettings(dictConfig):
     ps = sf.PrecisionSettings(zeroImagPartEps=dictConfig['NumericTolerance']['zeroImagPartEps'],

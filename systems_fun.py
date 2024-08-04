@@ -146,71 +146,6 @@ class ShgoEqFinder:
         return allEquilibria
 
 
-class NewtonEqFinder:
-    def __init__(self, xGridSize, yGridSize, eps):
-        self.xGridSize = xGridSize
-        self.yGridSize = yGridSize
-        self.eps = eps
-
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        Result = []
-        for i, x in enumerate(np.linspace(boundaries[0][0], boundaries[0][1], self.xGridSize)):
-            for j, y in enumerate(np.linspace(boundaries[1][0], boundaries[1][1], self.yGridSize)):
-                Result.append(optimize.root(rhs, [x, y], method='broyden1', jac=rhsJac).x)
-        allEquilibria = [x for x in Result if abs(rhsSq(x)) < self.eps and inBounds(x, borders)];
-        return allEquilibria
-
-
-class NewtonEqFinderUp:
-    def __init__(self, xGridSize, yGridSize, eps):
-        self.xGridSize = xGridSize
-        self.yGridSize = yGridSize
-        self.eps = eps
-
-    def test(self, rhs, x, y, step):
-        res = 0
-        if rhs((x, y))[0] * rhs((x, y + step))[0] < 0:
-            res = 1
-        elif rhs((x, y + step))[0] * rhs((x + step, y + step))[0] < 0:
-            res = 1
-        elif rhs((x + step, y + step))[0] * rhs((x + step, y))[0] < 0:
-            res = 1
-        elif rhs((x + step, y))[0] * rhs((x, y))[0] < 0:
-            res = 1
-        if res:
-            if rhs((x, y))[1] * rhs((x, y + step))[1] < 0:
-                res = 1
-            elif rhs((x, y + step))[1] * rhs((x + step, y + step))[1] < 0:
-                res = 1
-            elif rhs((x + step, y + step))[1] * rhs((x + step, y))[1] < 0:
-                res = 1
-            elif rhs((x + step, y))[1] * rhs((x, y))[1] < 0:
-                res = 1
-        return res
-
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        rectangles = np.zeros((self.xGridSize - 1, self.yGridSize - 1))
-
-        x = boundaries[0][0]
-        step = (boundaries[0][1] - boundaries[0][0]) / (self.yGridSize - 1)
-        for i in range(self.xGridSize - 1):
-            y = boundaries[1][0]
-            for j in range(self.yGridSize - 1):
-                if self.test(rhs, x, y, step):
-                    rectangles[self.xGridSize - i - 2][self.yGridSize - j - 2] = 1
-                y += step
-            x += step
-
-        Result = []
-        for i in range(self.xGridSize):
-            for j in range(self.yGridSize):
-                if rectangles[self.xGridSize - i - 2][self.yGridSize - j - 2]:
-                    Result.append(optimize.root(rhs, [boundaries[0][0] + i * step, boundaries[1][0] + j * step],
-                                                method='broyden1', jac=rhsJac).x)
-        allEquilibria = [x for x in Result if abs(rhsSq(x)) < self.eps and inBounds(x, borders)]
-        return allEquilibria
-
-
 def getEquilibriumInfo(pt, rhsJac):
     eigvals, eigvecs = LA.eig(rhsJac(pt))
     vecs = []
@@ -263,49 +198,6 @@ def filterEq(listEquilibria, ps: PrecisionSettings):
                                          distance_threshold=(ps.clustDistThreshold))
     clustering.fit(X)
     return indicesUniqueEq(clustering.labels_, data)
-
-
-def writeToFileEqList(envParams: EnvironmentParameters, EqList, params, nameOfFile):
-    sol = []
-    for eq in EqList:
-        sol.append(eq.strToFile())
-    headerStr = ('gamma = {par[0]}\n' +
-                 'd = {par[1]}\n' +
-                 'X  Y  nS  nC  nU  isSComplex  isUComplex  Re(eigval1)  Im(eigval1)  Re(eigval2)  Im(eigval2)\n' +
-                 '0  1  2   3   4   5           6           7            8            9            10').format(
-        par=params)
-    fmtList = ['%+18.15f',
-               '%+18.15f',
-               '%2u',
-               '%2u',
-               '%2u',
-               '%2u',
-               '%2u',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f', ]
-    np.savetxt("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), sol, header=headerStr,
-               fmt=fmtList)
-
-
-def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, numberValuesParam2, arrFirstParam,
-                          arrSecondParam):
-    N, M = numberValuesParam1, numberValuesParam2
-    colorGrid = np.zeros((M, N)) * np.NaN
-    diffTypes = {}
-    curTypeNumber = 0
-    for i in range(M):
-        for j in range(N):
-            data = np.loadtxt('{}{:0>5}_{:0>5}.txt'.format(envParams.pathToOutputDirectory, i, j), usecols=(2, 3, 4));
-            curPhPortrType = describePortrType(data.tolist())
-            if curPhPortrType not in diffTypes:
-                diffTypes[curPhPortrType] = curTypeNumber
-                curTypeNumber += 1.
-            colorGrid[j][i] = diffTypes[curPhPortrType]
-    plt.pcolormesh(arrFirstParam, arrSecondParam, colorGrid, cmap=plt.cm.get_cmap('RdBu'))
-    plt.colorbar()
-    plt.savefig('{}{}.pdf'.format(envParams.pathToOutputDirectory, envParams.imageStamp))
 
 
 def indicesUniqueEq(connectedPoints, nSnCnU):
@@ -412,19 +304,6 @@ def getInitPointsOnUnstable1DSeparatrix(eq, condition, ps: PrecisionSettings):
     else:
         raise ValueError('Not a saddle with 1d unstable manifold!')
 
-def get1dUnstEqs(eqList, rhs, ps: PrecisionSettings, OnlySadFoci):
-    list1dUnstEqs = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
-                list1dUnstEqs.append(eq)
-            if not OnlySadFoci:
-                if (isStable2DNode(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
-                    list1dUnstEqs.append(eq)
-
-    return list1dUnstEqs
 
 def pickBothSeparatrices(ptCoord, eqCoord):
     return True
@@ -452,13 +331,6 @@ def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, co
         integrationTime.append(sol.t[-1])
     return [separatrices, integrationTime]
 
-def computeTraj(startPt, rhs, ps: PrecisionSettings, maxTime, listEvents=None):
-    rhs_vec = lambda t, X: rhs(X)
-    sol = solve_ivp(rhs_vec, [0, maxTime], startPt, events=listEvents, rtol=ps.rTol, atol=ps.aTol,
-                    dense_output=True)
-    traj = np.transpose(sol.y)
-    integrationTime = sol.t[-1]
-    return [traj, integrationTime]
 
 def constructDistEvent(x0, eps):
     evt = lambda t, X: distance.euclidean(x0, X) - eps
@@ -472,9 +344,6 @@ def isSink(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
     return eqType[1] == 0 and eqType[2] == 0
 
-def isSourсe(eq, ps: PrecisionSettings):
-    eqType = eq.getEqType(ps)
-    return eqType[0] == 0 and eqType[1] == 0
 
 def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
     listEvents = []
@@ -538,81 +407,3 @@ def embedBackTransform(X: Equilibrium, rhsJac):
 def cirTransform(eq: Equilibrium, rhsJac):
     coords = generateSymmetricPoints(eq.coordinates)
     return [getEquilibriumInfo(cd, rhsJac) for cd in coords]
-
-def getSadfocsPairs(eqList, rhs, ps: PrecisionSettings):
-    sadFocsWith1dU = []
-    sadFocsWith1dS = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
-                sadFocsWith1dU.append((eq, eqOnPlaneIn3D))
-            elif (isUnstable2DFocus(eq, ps) and is3DSaddleFocusWith1dS(eqOnPlaneIn3D, ps)):
-                sadFocsWith1dS.append((eq, eqOnPlaneIn3D))
-    conf = []
-    for sf2DSt, sf3DWith1dU in sadFocsWith1dU:
-        for sd2DUnst, sd3DWith1dS in sadFocsWith1dS:
-            conf.append((sf2DSt, sd2DUnst))
-    return conf
-
-def getSf1Sf2Sad(eqList, rhs, ps: PrecisionSettings):
-    """
-    return all saddle-focus With 1dU, saddle-focus With 1dS and saddle on edge -
-    equilibrium states that can participate in the heteroclinic cycle with a ligament between two saddle-foci
-    """
-    saddles = []
-    sadFocsWith1dU = []
-    sadFocsWith1dS = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (is2DSaddle(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
-                if (eq.coordinates[1] - eq.coordinates[0] < ps.zeroRealPartEps):
-                    saddles.append(eq)
-
-            elif (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
-                sadFocsWith1dU.append(eq)
-
-            elif (isUnstable2DFocus(eq, ps) and is3DSaddleFocusWith1dS(eqOnPlaneIn3D, ps)):
-                sadFocsWith1dS.append(eq)
-
-    return [saddles, sadFocsWith1dU, sadFocsWith1dS]
-
-def getSadSf(eqList, rhs, ps: PrecisionSettings):
-    """
-        return all saddle and saddle-focus With 1dS  on edge -
-        equilibrium states that can participate in the heteroclinic net
-    """
-    saddles = []
-    sadFocsWith1dS = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (is2DSaddle(eq, ps) and is3DSaddleWith1dS(eqOnPlaneIn3D, ps)):
-                if (eq.coordinates[1] - eq.coordinates[0] < ps.zeroRealPartEps):
-                    saddles.append(eq)
-            elif (isUnstable2DFocus(eq, ps) and is3DSaddleFocusWith1dS(eqOnPlaneIn3D, ps)):
-                sadFocsWith1dS.append(eq)
-
-    return [saddles, sadFocsWith1dS]
-
-def eqCopyOnPlane(eq: Equilibrium, rhsJac, ps: PrecisionSettings):
-    x, y, z = eq.coordinates
-    for i in range(4):
-        if (x < ps.zeroRealPartEps):
-            return getEquilibriumInfo([x, y, z], rhsJac)
-        x, y, z = T([x, y, z])
-
-def planeTransform(eq: Equilibrium, rhsJac):
-    x, y, z = eq.coordinates
-    return getEquilibriumInfo([y, z], rhsJac)
-
-def eqOfEqs(eq1, eq2):
-    """to compare equilibrium states """
-    if (eq1.coordinates == eq2.coordinates and eq1.eigenvalues == eq2.eigenvalues):
-        return True
-    else:
-        return False
