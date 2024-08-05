@@ -1,1 +1,0 @@
-Dist = 10.0, newLambda = 0.55, newGamma = 0.6664278241282653
