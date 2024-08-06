@@ -1,5 +1,0 @@
-# gamma = 0.125
-# lambda = 1.6
-# SaddleIndex
-# 0           
-+1.595406938261154
