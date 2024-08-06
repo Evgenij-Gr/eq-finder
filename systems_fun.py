@@ -1,20 +1,10 @@
-import os
 import scipy
-import matplotlib.pyplot as plt
 import numpy as np
 
 from scipy import optimize
 from numpy import linalg as LA
 from sklearn.cluster import AgglomerativeClustering
 from scipy.integrate import solve_ivp
-from scipy.spatial import distance
-
-class EnvironmentParameters:
-    def __init__(self, pathToOutputDirectory, outputStamp, imageStamp):
-        assert (os.path.isdir(pathToOutputDirectory)), 'Output directory does not exist!'
-        self.pathToOutputDirectory = os.path.join(os.path.normpath(pathToOutputDirectory), '')
-        self.outputStamp = outputStamp
-        self.imageStamp = imageStamp
 
 
 class PrecisionSettings:
@@ -86,30 +76,8 @@ class Equilibrium:
         self.coordinates = list(coordinates)
         self.eigenvalues = eigvalsNew
         self.eigvectors = eigvectsNew
-        # if len(eigenvalues) != len(coordinates):
-        #     raise ValueError('Vector of coordinates and vector of eigenvalues must have the same size!')
-
-    def strToFile(self, ps: PrecisionSettings):
-        eigs = []
-        for val in self.eigenvalues:
-            eigs += [val.real, val.imag]
-        return self.coordinates + self.getEqType(ps) + eigs
-
-    def strToFile_SI(self, ps: PrecisionSettings):
-        eigs = []
-        for val in self.eigenvalues:
-            eigs += [val.real, val.imag]
-        st = self.getLeadSEigRe(ps)
-        unst = self.getLeadUEigRe(ps)
-        sigma = unst - (-1 * st)
-        rho = -st / unst
-        return self.coordinates + self.getEqType(ps) + eigs + [st] + [unst] + [sigma] + [rho]
-
-    def getLeadSEigRe(self, ps: PrecisionSettings):
-        return max([se.real for se in self.eigenvalues if ps.isEigStable(se)])
-
-    def getLeadUEigRe(self, ps: PrecisionSettings):
-        return min([se.real for se in self.eigenvalues if ps.isEigUnstable(se)])
+        if len(eigenvalues) != len(coordinates):
+            raise ValueError('Vector of coordinates and vector of eigenvalues must have the same size!')
 
     def getEqType(self, ps: PrecisionSettings):
         return describeEqType(np.array(self.eigenvalues), ps)
@@ -124,22 +92,6 @@ def describeEqType(eigvals, ps: PrecisionSettings):
     issc = 1 if nS > 0 and ps.isComplex(eigvalsS[-1]) else 0
     isuc = 1 if nU > 0 and ps.isComplex(eigvalsU[0]) else 0
     return [nS, nC, nU, issc, isuc]
-
-
-def describePortrType(arrEqSignatures):
-    if arrEqSignatures:
-        phSpaceDim = int(sum(arrEqSignatures[0]))
-        eqTypes = {(i, phSpaceDim - i): 0 for i in range(phSpaceDim + 1)}
-        nonRough = 0
-        for eqSign in arrEqSignatures:
-            nS, nC, nU = eqSign
-            if nC == 0:
-                eqTypes[(nU, nS)] += 1
-            else:
-                nonRough += 1
-        # nSinks, nSaddles, nSources,  nNonRough
-        portrType = tuple([eqTypes[(i, phSpaceDim - i)] for i in range(phSpaceDim + 1)] + [nonRough])
-        return portrType
 
 
 class ShgoEqFinder:
@@ -157,76 +109,6 @@ class ShgoEqFinder:
         optResult = scipy.optimize.shgo(eqRhsSquared, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
         allEquilibria = [x for x, val in zip(optResult.xl, optResult.funl) if
                          abs(val) < self.eps and inBounds(x, borders)]
-        return allEquilibria
-    # def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-    #     optResult = scipy.optimize.shgo(rhsSq, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
-    #     allEquilibria = [x for x, val in zip(optResult.xl, optResult.funl) if
-    #                      abs(val) < self.eps and inBounds(x, borders)];
-    #     return allEquilibria
-
-
-class NewtonEqFinder:
-    def __init__(self, xGridSize, yGridSize, eps):
-        self.xGridSize = xGridSize
-        self.yGridSize = yGridSize
-        self.eps = eps
-
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        Result = []
-        for i, x in enumerate(np.linspace(boundaries[0][0], boundaries[0][1], self.xGridSize)):
-            for j, y in enumerate(np.linspace(boundaries[1][0], boundaries[1][1], self.yGridSize)):
-                Result.append(optimize.root(rhs, [x, y], method='broyden1', jac=rhsJac).x)
-        allEquilibria = [x for x in Result if abs(rhsSq(x)) < self.eps and inBounds(x, borders)];
-        return allEquilibria
-
-
-class NewtonEqFinderUp:
-    def __init__(self, xGridSize, yGridSize, eps):
-        self.xGridSize = xGridSize
-        self.yGridSize = yGridSize
-        self.eps = eps
-
-    def test(self, rhs, x, y, step):
-        res = 0
-        if rhs((x, y))[0] * rhs((x, y + step))[0] < 0:
-            res = 1
-        elif rhs((x, y + step))[0] * rhs((x + step, y + step))[0] < 0:
-            res = 1
-        elif rhs((x + step, y + step))[0] * rhs((x + step, y))[0] < 0:
-            res = 1
-        elif rhs((x + step, y))[0] * rhs((x, y))[0] < 0:
-            res = 1
-        if res:
-            if rhs((x, y))[1] * rhs((x, y + step))[1] < 0:
-                res = 1
-            elif rhs((x, y + step))[1] * rhs((x + step, y + step))[1] < 0:
-                res = 1
-            elif rhs((x + step, y + step))[1] * rhs((x + step, y))[1] < 0:
-                res = 1
-            elif rhs((x + step, y))[1] * rhs((x, y))[1] < 0:
-                res = 1
-        return res
-
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        rectangles = np.zeros((self.xGridSize - 1, self.yGridSize - 1))
-
-        x = boundaries[0][0]
-        step = (boundaries[0][1] - boundaries[0][0]) / (self.yGridSize - 1)
-        for i in range(self.xGridSize - 1):
-            y = boundaries[1][0]
-            for j in range(self.yGridSize - 1):
-                if self.test(rhs, x, y, step):
-                    rectangles[self.xGridSize - i - 2][self.yGridSize - j - 2] = 1
-                y += step
-            x += step
-
-        Result = []
-        for i in range(self.xGridSize):
-            for j in range(self.yGridSize):
-                if rectangles[self.xGridSize - i - 2][self.yGridSize - j - 2]:
-                    Result.append(optimize.root(rhs, [boundaries[0][0] + i * step, boundaries[1][0] + j * step],
-                                                method='broyden1', jac=rhsJac).x)
-        allEquilibria = [x for x in Result if abs(rhsSq(x)) < self.eps and inBounds(x, borders)]
         return allEquilibria
 
 
@@ -258,14 +140,6 @@ def findEquilibria(rhs, rhsJac, eqRhs, eqJac, embedInPhaseSpace, bounds, borders
     allEqCoords = optMethod(rhs, rhsJac, eqRhs, eqJac, bounds, borders)
     allEquilibria = list(map(embedInPhaseSpace, allEqCoords))
     return createEqList(allEquilibria, rhsJac, ps)
-# def findEquilibria(rhs, rhsJac, bounds, borders, optMethod, ps: PrecisionSettings):
-#     def rhsSq(x):
-#         xArr = np.array(x)
-#         vec = rhs(xArr)
-#         return np.dot(vec, vec)
-#
-#     allEquilibria = optMethod(rhs, rhsSq, rhsJac, bounds, borders)
-#     return createEqList(allEquilibria, rhsJac, ps)
 
 
 def inBounds(X, boundaries):
@@ -288,64 +162,6 @@ def filterEq(listEquilibria, ps: PrecisionSettings):
     return indicesUniqueEq(clustering.labels_, data)
 
 
-def writeToFileEqList(envParams: EnvironmentParameters, EqList, params, nameOfFile, ps: PrecisionSettings):
-    sol = []
-    for eq in EqList:
-        sol.append(eq.strToFile(ps))
-    headerStr = ('gamma = {par[0]}\n' +
-                 'lambda = {par[1]}\n' +
-                 'fi1              V1                 fi2                V2                  nS nC nU isSComplex  isUComplex   Re(eigval1)        Im(eigval1)        Re(eigval2)        Im(eigval2)        Re(eigval3)        Im(eigval3)        Re(eigval4)        Im(eigval4)\n' +
-                 '0                1                  2                  3                   4  5  6  7           8            9                  10                 11                 12                 13                 14                 15                 16').format(
-        par=params)
-    fmtList = ['%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%2u',
-               '%2u',
-               '%2u',
-               '%2u         ',
-               '%2u           ',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f',
-               '%+18.15f']
-    if EqList:
-        np.savetxt("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), sol, header=headerStr,
-               fmt=fmtList)
-    else:
-        with open("{env.pathToOutputDirectory}{}.txt".format(nameOfFile, env=envParams), "w+") as f:
-            f.write("\n")
-
-
-def createBifurcationDiag(envParams: EnvironmentParameters, numberValuesParam1, numberValuesParam2, arrFirstParam,
-                          arrSecondParam):
-    N, M = numberValuesParam1, numberValuesParam2
-    colorGrid = np.zeros((M, N)) * np.NaN
-    diffTypes = {}
-    curTypeNumber = 0
-    for i in range(M):
-        for j in range(N):
-            data = np.loadtxt('{}{:0>5}_{:0>5}.txt'.format(envParams.pathToOutputDirectory, i, j), usecols=(4, 5, 6));
-            curPhPortrType = describePortrType(data.tolist())
-            # print(curPhPortrType)
-            if curPhPortrType not in diffTypes:
-                diffTypes[curPhPortrType] = curTypeNumber
-                curTypeNumber += 1.
-            colorGrid[i][j] = diffTypes[curPhPortrType]
-
-    plt.pcolormesh(arrFirstParam, arrSecondParam, colorGrid, cmap=plt.cm.get_cmap('RdBu'))
-    plt.colorbar()
-    plt.xlabel(r'$\gamma$')
-    plt.ylabel(r'$\lambda$')
-    plt.savefig('{}{}.pdf'.format(envParams.pathToOutputDirectory, envParams.imageStamp))
-    plt.clf()
-
-
 def indicesUniqueEq(connectedPoints, nSnCnU):
     arrDiffPoints = {}
     for i in range(len(connectedPoints)):
@@ -355,90 +171,16 @@ def indicesUniqueEq(connectedPoints, nSnCnU):
     return arrDiffPoints.values()
 
 
-def valP(sdlFocEq, saddlEq, ps: PrecisionSettings):
-    sdlLeadingSRe = saddlEq.getLeadSEigRe(ps)
-    sdlLeadingURe = saddlEq.getLeadUEigRe(ps)
-    sdlFocLeadSRe = sdlFocEq.getLeadSEigRe(ps)
-    sdlFocLeadURe = sdlFocEq.getLeadUEigRe(ps)
-    p = (-sdlLeadingURe / sdlLeadingSRe) * (-sdlFocLeadURe / sdlFocLeadSRe)
-    return p
-
-
 def embedPointBack(ptOnPlane):
     return [0] + ptOnPlane
-
-
-def isPtInUpperTriangle(ptOnPlane, ps: PrecisionSettings):
-    x, y = ptOnPlane
-    return (x >= ps.marginBorder) and (x + ps.marginBorder <= y) and (y <= 2 * np.pi - ps.marginBorder)
-
-
-
-def isStable2DFocus(eq, ps: PrecisionSettings):
-    return eq.getEqType(ps) == [2, 0, 0, 1, 0]
-
-def isStable2DNode(eq, ps: PrecisionSettings):
-    return eq.getEqType(ps) == [2, 0, 0, 0, 0]
-
-def is2DSaddle(eq, ps: PrecisionSettings):
-    return eq.getEqType(ps) == [1, 0, 1, 0, 0]
-
-def is3DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
-    return eq.getEqType(ps) == [2, 0, 1, 1, 0]
-
-def is3DSaddleWith1dU(eq, ps: PrecisionSettings):
-    return eq.getEqType(ps) == [2, 0, 1, 0, 0]
-
-
 
 
 def is4DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [3, 0, 1, 1, 0]
 
 
-
-
 def has1DUnstable(eq, ps: PrecisionSettings):
     return eq.getEqType(ps)[2] == 1
-
-def listEqOnInvPlaneTo3D(listEq, rhs):
-    listEq3D = []
-    for eq in listEq:
-        listEq3D.append(embedBackTransform(eq, rhs.getReducedSystemJac))
-    return listEq3D
-
-def getSaddleSadfocPairs(eqList, rhs, ps: PrecisionSettings, needTresserPairs = False):
-    '''
-    Accepts EqList — a list of all Equilibria on invariant plane.
-    Returns pairs of Equilibria that might be organized in
-    heteroclinic cycle with a Smale's horseshoe nearby.
-    The output Equilibria are given w.r.t. invariant plane.
-    '''
-    sadFocs = []
-    saddles = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
-                sadFocs.append((eq, eqOnPlaneIn3D))
-            elif (is2DSaddle(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
-                saddles.append((eq, eqOnPlaneIn3D))
-    conf = []
-    for sf2D, sf3D in sadFocs:
-        for sd2D, sd3D in saddles:
-            if (not needTresserPairs) or valP(sf3D, sd3D, ps) > 1.:
-                conf.append((sd2D, sf2D))
-    return conf
-
-
-# def T(X):
-#     x, y, z = X
-#     return [y - x, z - x, 2 * np.pi - x]
-#
-#
-# def generateSymmetricPoints(pt):
-#     return [pt, T(pt), T(T(pt)), T(T(T(pt)))]
 
 
 def getInitPointsOnUnstable1DSeparatrix(eq, condition, ps: PrecisionSettings):
@@ -451,33 +193,10 @@ def getInitPointsOnUnstable1DSeparatrix(eq, condition, ps: PrecisionSettings):
     else:
         raise ValueError('Not a saddle with 1d unstable manifold!')
 
-def get1dUnstEqs(eqList, rhs, ps: PrecisionSettings, OnlySadFoci):
-    list1dUnstEqs = []
-    for eq in eqList:
-        ptOnInvPlane = eq.coordinates
-        eqOnPlaneIn3D  = embedBackTransform(eq, rhs.getReducedSystemJac)
-        if (isPtInUpperTriangle(ptOnInvPlane, ps)):
-            if (isStable2DFocus(eq, ps) and is3DSaddleFocusWith1dU(eqOnPlaneIn3D, ps)):
-                list1dUnstEqs.append(eq)
-            if not OnlySadFoci:
-                if(isStable2DNode(eq, ps) and is3DSaddleWith1dU(eqOnPlaneIn3D, ps)):
-                    list1dUnstEqs.append(eq)
-
-    return list1dUnstEqs
 
 def pickBothSeparatrices(ptCoord, eqCoord):
     return True
 
-
-def isInCIR(pt, strictly = False):
-    th2, th3, th4 = pt
-    if strictly:
-        return (0 + 1e-2 <= th2) and (th2 <= th3 - 1e-2) and (th3 <= th4 - 1e-2) and (th4 <= (2 * np.pi - 1e-2))
-    return (0 - 1e-7 <= th2) and (th2 <= th3) and (th3 <= th4) and (th4 <= (2 * np.pi + 1e-7))
-
-
-def pickCirSeparatrix(ptCoord, eqCoord):
-    return isInCIR(ptCoord)
 
 def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, tSkip, listEvents = None):
     startPts = getInitPointsOnUnstable1DSeparatrix(eq, condition, ps)
@@ -509,40 +228,7 @@ def isSink(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
     return eqType[1] == 0 and eqType[2] == 0
 
-def isSourсe(eq, ps: PrecisionSettings):
-    eqType = eq.getEqType(ps)
-    return eqType[0] == 0 and eqType[1] == 0
 
-# def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
-#     listEvents = []
-#     for eq in eqList:
-#         if eq.coordinates != startEq.coordinates:
-#             isTargetEq = False
-#
-#             coords = eq.coordinates
-#
-#             for targetEq in targetEqs:
-#                 if targetEq.coordinates == eq.coordinates:
-#                     isTargetEq = True
-#
-#             if isSaddle(eq, ps):
-#                 if isTargetEq:
-#                     event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv)
-#                 else:
-#                     event = constructDistEvent(coords, proxs.toSddlPrxtyEv)
-#                 event.terminal = True
-#                 event.direction = -1
-#                 listEvents.append(event)
-#             elif isSink(eq, ps):
-#                 if isTargetEq:
-#                     event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv)
-#                 else:
-#                     event = constructDistEvent(coords, proxs.toSinkPrxtyEv)
-#                 event.terminal = True
-#                 event.direction = -1
-#                 listEvents.append(event)
-#
-#     return listEvents
 def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings, distFunc):
     listEvents = []
 
@@ -588,23 +274,7 @@ def idListTransform(X, rhsJac):
     """
     return [X]
 
-def hasExactly(num):
-    return lambda seps: len(seps) == num
 
 def anyNumber(seps):
     return True
-
-def embedBackTransform(X: Equilibrium, rhsJac):
-    """
-    Takes an Equilbrium from invariant plane
-    and reinterprets it as an Equilibrium
-    of reduced system
-    """
-    xNew = embedPointBack(X.coordinates)
-    return getEquilibriumInfo(xNew, rhsJac)
-
-# def cirTransform(eq: Equilibrium, rhsJac):
-#     coords = generateSymmetricPoints(eq.coordinates)
-#     return [getEquilibriumInfo(cd, rhsJac) for cd in coords]
-
 

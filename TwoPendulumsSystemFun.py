@@ -1,5 +1,4 @@
 import numpy as np
-import systems_fun as sf
 import os
 import matplotlib.pyplot as plt
 from math import fmod
@@ -31,50 +30,6 @@ def periodDistance4D(point1, point2):
     dist = np.sqrt((distanceOnCircle(fi11, fi12))**2 + (V11-V12)**2 +
                    (distanceOnCircle(fi21, fi22))**2 + (V21-V22)**2)
     return dist
-
-
-def Distance4D(separatrix, coordinates):
-    arrayDistance = []
-    for point in separatrix:
-        dist = periodDistance4D(point, coordinates)
-        arrayDistance.append(dist)
-    return min(arrayDistance)
-
-def periodDistance2D(point1, point2):
-    fi1, V1 = point1
-    fi2, V2 = point2
-    dist = np.sqrt((distanceOnCircle(fi1, fi2))**2 + (V1-V1)**2)
-    return dist
-
-
-def Distance2D(separatrix, coordinates):
-    arrayDistance = []
-    for point in separatrix:
-        dist = periodDistance2D(point, coordinates)
-        arrayDistance.append(dist)
-    return min(arrayDistance)
-
-
-def T(eqCoords):
-    fi1, V1, fi2, V2 = eqCoords
-    return [fi2, V2, fi1, V1]
-
-
-def symmetricSaddleFocuses(Eq):
-    symmetricEq = [eq for eq in Eq if eq.coordinates[0] > eq.coordinates[2]]
-    return symmetricEq
-
-
-def applyTtoEq(eq, rhsJac):
-    cds = eq.coordinates
-    newCds = T(cds)
-    return sf.getEquilibriumInfo(newCds, rhsJac)
-
-
-def createPairsToCheck(newEq, rhsJac):
-    filtSadFocList = symmetricSaddleFocuses(newEq)
-    pairsToCheck = [(eq, applyTtoEq(eq, rhsJac)) for eq in filtSadFocList]
-    return pairsToCheck
 
 
 def prepareTwoPendulumsHeteroclinicsData(data):
@@ -160,25 +115,3 @@ def get_grid(dictConfig):
 
     paramK = dictConfig['Parameters']['Kval']
     return ( N, M, gammas, lambdas, paramK)
-
-def get_gamma_lambda(dictConfig):
-    gamma_min = dictConfig['Parameters']['gamma_min']
-    gamma_max
-
-# def normalize(fi):
-#     if fi > np.pi:
-#         newFi = fmod(fi + np.pi, 2*np.pi) - np.pi
-#     elif fi < -np.pi:
-#         newFi = fmod(fi - np.pi, 2 * np.pi) + np.pi
-#     else:
-#         newFi = fi
-#     return newFi
-
-
-def normalize_fi_vec(vec):
-    new_vec = []
-    for coord in vec:
-        new_coord = toStandartAngle(coord)
-        new_vec.append(new_coord)
-    return new_vec
-

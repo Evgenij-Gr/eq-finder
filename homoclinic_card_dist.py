@@ -7,7 +7,7 @@ import multiprocessing as mp
 import itertools as itls
 import time
 from functools import partial
-from MySystem import TwoPendulums, mapBackTo4D
+from TwoCoupledPendulums import TwoPendulums, mapBackTo4D
 import datetime
 import os.path
 
@@ -25,16 +25,13 @@ def create_homoclinic_dist_card(params, paramK, events=False):
     JacRhs = Sys.Jac
     Eq = sf.findEquilibria(TestRhs, JacRhs, TestRhsType, TestJacType, mapBackTo4D, boundsType, bordersType, sf.ShgoEqFinder(300, 30, 1e-10), sf.STD_PRECISION)
 
-    # for eq in Eq:
-    #     eq.coordinates = mapBackTo4D(eq.coordinates)
-
     newEq = [eq for eq in Eq if sf.is4DSaddleFocusWith1dU(eq, sf.STD_PRECISION)]
-    # allSymmEqs = itls.chain.from_iterable([[eq, tpsf.applyTtoEq(eq, JacRhs)] for eq in Eq])
-
-    pairs_to_check = [[newEq[0], newEq[0]]]
-    cnctInfo = FH.checkSeparatrixConnection(pairs_to_check, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
-                                            TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
-                                            sf.anyNumber, 2e-4, 100., tpsf.periodDistance4D, listEqCoords=None)
+    cnctInfo = []
+    if newEq:
+        pairs_to_check = [[newEq[0], newEq[0]]]
+        cnctInfo = FH.checkSeparatrixConnection(pairs_to_check, sf.STD_PRECISION, sf.STD_PROXIMITY, TestRhs,
+                                                TestJacType, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform,
+                                                sf.anyNumber, 2e-4, 100., tpsf.periodDistance4D, listEqCoords=None)
     print('{}-{}'.format(i, j))
 
     return i, j, Gamma, Lambda, paramK, cnctInfo
@@ -76,4 +73,4 @@ if __name__ == "__main__":
     tpsf.saveTwoPendulumsHeteroclinicsDataAsTxt(preparedData, pathToOutputDir, outputFileMask)
     tpsf.plotTwoPendulumsHeteroclinicsData(preparedData, gammas, lambdas, paramK, pathToOutputDir, outputFileMask)
 
-# TODO python homoclinic_card_dist.py C:\Users\User\eq-finder\config.txt HomoclinicsData C:\Users\User\eq-finder\output_files\TwoPendulums\Гомоклиника_карты_расстояний
+# TODO python homoclinic_card_dist.py .\config.txt HomoclinicsData .\output_files\

@@ -15,10 +15,10 @@
 {'Kval': 0.06,
 'gamma_min': 0.,
 'gamma_max': 1.5,
-'gamma_N': 71,
+'gamma_N': 21,
 'lambda_min': 0.,
 'lambda_max': 1.5,
-'lambda_N': 71,
+'lambda_N': 21,
 'useEvents': True,
 },
 }
