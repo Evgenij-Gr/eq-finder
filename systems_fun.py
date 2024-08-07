@@ -1,20 +1,10 @@
-import os
 import scipy
-import matplotlib.pyplot as plt
 import numpy as np
 
 from scipy import optimize
 from numpy import linalg as LA
 from sklearn.cluster import AgglomerativeClustering
 from scipy.integrate import solve_ivp
-from scipy.spatial import distance
-
-class EnvironmentParameters:
-    def __init__(self, pathToOutputDirectory, outputStamp, imageStamp):
-        assert (os.path.isdir(pathToOutputDirectory)), 'Output directory does not exist!'
-        self.pathToOutputDirectory = os.path.join(os.path.normpath(pathToOutputDirectory), '')
-        self.outputStamp = outputStamp
-        self.imageStamp = imageStamp
 
 
 class PrecisionSettings:
@@ -56,8 +46,7 @@ STD_PRECISION = PrecisionSettings(zeroImagPartEps=1e-14,
 
 
 class ProximitySettings:
-    def __init__(self, toSinkPrxtyEv, toSddlPrxtyEv, toTargetSinkPrxtyEv, toTargetSddlPrxtyEv, toSinkPrxty,
-                 toSddlPrxty):
+    def __init__(self, toSinkPrxtyEv, toSddlPrxtyEv, toTargetSinkPrxtyEv, toTargetSddlPrxtyEv, toSinkPrxty, toSddlPrxty):
         assert toSinkPrxtyEv > 0, "Precision must be greater than zero!"
         assert toSddlPrxtyEv > 0, "Precision must be greater than zero!"
         assert toTargetSinkPrxtyEv > 0, "Precision must be greater than zero!"
@@ -72,10 +61,18 @@ class ProximitySettings:
         self.toSinkPrxty = toSinkPrxty
         self.toSddlPrxty = toSddlPrxty
 
-STD_PROXIMITY = ProximitySettings(toSinkPrxtyEv=1e-6,
+STD_A4D_PROXIMITY = ProximitySettings(toSinkPrxtyEv=1e-6,
                                   toSddlPrxtyEv=1e-3,
                                   toTargetSinkPrxtyEv=9 * 1e-6,
                                   toTargetSddlPrxtyEv=9 * 1e-3,
+                                  toSinkPrxty=1e-5,
+                                  toSddlPrxty=1e-2
+                                  )
+
+STD_PEND_PROXIMITY = ProximitySettings(toSinkPrxtyEv=1e-6,
+                                  toSddlPrxtyEv=1e-3,
+                                  toTargetSinkPrxtyEv=9 * 1e-6,
+                                  toTargetSddlPrxtyEv=2 * 1e-3,
                                   toSinkPrxty=1e-5,
                                   toSddlPrxty=1e-2
                                   )
@@ -90,12 +87,6 @@ class Equilibrium:
         self.eigvectors = eigvectsNew
         if len(eigenvalues) != len(coordinates):
             raise ValueError('Vector of coordinates and vector of eigenvalues must have the same size!')
-
-    def strToFile(self, ps: PrecisionSettings):
-        eigs = []
-        for val in self.eigenvalues:
-            eigs += [val.real, val.imag]
-        return self.coordinates + self.getEqType(ps) + eigs
 
     def getLeadSEigRe(self, ps: PrecisionSettings):
         return max([se.real for se in self.eigenvalues if ps.isEigStable(se)])
@@ -139,12 +130,16 @@ class ShgoEqFinder:
         self.nIters = nIters
         self.eps = eps
 
-    def __call__(self, rhs, rhsSq, rhsJac, boundaries, borders):
-        optResult = scipy.optimize.shgo(rhsSq, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
+    def __call__(self, rhs, rhsJac, eqRhs, eqJac, boundaries, borders):
+        def eqRhsSquared(x):
+            xArr = np.array(x)
+            vec = eqRhs(xArr)
+            return np.dot(vec, vec)
+
+        optResult = scipy.optimize.shgo(eqRhsSquared, boundaries, n=self.nSamples, iters=self.nIters, sampling_method='sobol');
         allEquilibria = [x for x, val in zip(optResult.xl, optResult.funl) if
                          abs(val) < self.eps and inBounds(x, borders)];
         return allEquilibria
-
 
 def getEquilibriumInfo(pt, rhsJac):
     eigvals, eigvecs = LA.eig(rhsJac(pt))
@@ -170,13 +165,9 @@ def createEqList(allEquilibria, rhsJac, ps: PrecisionSettings):
     return EqList
 
 
-def findEquilibria(rhs, rhsJac, bounds, borders, optMethod, ps: PrecisionSettings):
-    def rhsSq(x):
-        xArr = np.array(x)
-        vec = rhs(xArr)
-        return np.dot(vec, vec)
-
-    allEquilibria = optMethod(rhs, rhsSq, rhsJac, bounds, borders)
+def findEquilibria(rhs, rhsJac, eqRhs, eqJac, embedInPhaseSpace, bounds, borders, optMethod, ps: PrecisionSettings):
+    allEqCoords = optMethod(rhs, rhsJac, eqRhs, eqJac, bounds, borders)
+    allEquilibria = list(map(embedInPhaseSpace, allEqCoords))
     return createEqList(allEquilibria, rhsJac, ps)
 
 
@@ -217,15 +208,12 @@ def valP(sdlFocEq, saddlEq, ps: PrecisionSettings):
     p = (-sdlLeadingURe / sdlLeadingSRe) * (-sdlFocLeadURe / sdlFocLeadSRe)
     return p
 
-
 def embedPointBack(ptOnPlane):
     return [0] + ptOnPlane
-
 
 def isPtInUpperTriangle(ptOnPlane, ps: PrecisionSettings):
     x, y = ptOnPlane
     return (x >= ps.marginBorder) and (x + ps.marginBorder <= y) and (y <= 2 * np.pi - ps.marginBorder)
-
 
 def isStable2DFocus(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [2, 0, 0, 1, 0]
@@ -253,6 +241,9 @@ def is3DSaddleWith1dS(eq, ps: PrecisionSettings):
 
 def has1DUnstable(eq, ps: PrecisionSettings):
     return eq.getEqType(ps)[2] == 1
+
+def is4DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
+    return eq.getEqType(ps) == [3, 0, 1, 1, 0]
 
 def listEqOnInvPlaneTo3D(listEq, rhs):
     listEq3D = []
@@ -319,7 +310,7 @@ def isInCIR(pt, strictly=False):
 def pickCirSeparatrix(ptCoord, eqCoord):
     return isInCIR(ptCoord)
 
-def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, listEvents=None):
+def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, condition, tSkip, listEvents = None):
     startPts = getInitPointsOnUnstable1DSeparatrix(eq, condition, ps)
     rhs_vec = lambda t, X: rhs(X)
     separatrices = []
@@ -327,13 +318,14 @@ def computeSeparatrices(eq: Equilibrium, rhs, ps: PrecisionSettings, maxTime, co
     for startPt in startPts:
         sol = solve_ivp(rhs_vec, [0, maxTime], startPt, events=listEvents, rtol=ps.rTol, atol=ps.aTol,
                         dense_output=True)
-        separatrices.append(np.transpose(sol.y))
+        coordsList = list(zip(*sol.y))
+        sepPart = [y for y, t in list(zip(coordsList, sol.t)) if t>tSkip]
+        separatrices.append(sepPart)
         integrationTime.append(sol.t[-1])
     return [separatrices, integrationTime]
 
-
-def constructDistEvent(x0, eps):
-    evt = lambda t, X: distance.euclidean(x0, X) - eps
+def constructDistEvent(x0, eps, distFunc):
+    evt = lambda t, X: distFunc(x0, X) - eps
     return evt
 
 def isSaddle(eq, ps: PrecisionSettings):
@@ -344,8 +336,7 @@ def isSink(eq, ps: PrecisionSettings):
     eqType = eq.getEqType(ps)
     return eqType[1] == 0 and eqType[2] == 0
 
-
-def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings):
+def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs: ProximitySettings, distFunc):
     listEvents = []
 
     for eq in eqList:
@@ -360,22 +351,22 @@ def createListOfEvents(startEq, targetEqs, eqList, ps: PrecisionSettings, proxs:
 
             if isSaddle(eq, ps):
                 if isTargetEq:
-                    event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toTargetSddlPrxtyEv, distFunc)
                 else:
-                    event = constructDistEvent(coords, proxs.toSddlPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toSddlPrxtyEv, distFunc)
                 event.terminal = True
                 event.direction = -1
                 listEvents.append(event)
             elif isSink(eq, ps):
                 if isTargetEq:
-                    event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toTargetSinkPrxtyEv, distFunc)
                 else:
-                    event = constructDistEvent(coords, proxs.toSinkPrxtyEv)
+                    event = constructDistEvent(coords, proxs.toSinkPrxtyEv, distFunc)
                 event.terminal = True
                 event.direction = -1
                 listEvents.append(event)
-
     return listEvents
+
 
 def idTransform(X, rhsJac):
     """

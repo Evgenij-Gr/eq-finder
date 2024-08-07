@@ -1,13 +1,11 @@
 import systems_fun as sf
 from collections import defaultdict
-import numpy as np
-import itertools
 import itertools as itls
 import SystOsscills as a4d
 from scipy.spatial import distance
 
 
-def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, sepCondition, eqTransformer, sepNumCondition, sepProximity, maxTime, listEqCoords = None):
+def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.ProximitySettings, rhs, rhsJac, phSpaceTransformer, sepCondition, eqTransformer, sepNumCondition, sepProximity, maxTime, distFunc, tSkip=0, listEqCoords = None):
     """
     Accepts pairsToCheck — a list of pairs of Equilibria — and checks if there is
     an approximate connection between them. First equilibrium of pair
@@ -27,21 +25,21 @@ def checkSeparatrixConnection(pairsToCheck, ps: sf.PrecisionSettings, proxs: sf.
         omegaEqsTr = [phSpaceTransformer(oEq, rhsJac) for oEq in omegaEqs]
         fullOmegaEqsTr = list(itls.chain.from_iterable([eqTransformer(oEq, rhsJac) for oEq in omegaEqsTr]))
         if listEqCoords:
-            events = sf.createListOfEvents(alphaEqTr, fullOmegaEqsTr, listEqCoords, ps, proxs)
-        separatrices, integrTimes = sf.computeSeparatrices(alphaEqTr, rhs, ps, maxTime, sepCondition, events)
+            events = sf.createListOfEvents(alphaEqTr, fullOmegaEqsTr, listEqCoords, ps, proxs, distFunc)
+        separatrices, integrTimes = sf.computeSeparatrices(alphaEqTr, rhs, ps, maxTime, sepCondition, tSkip, events)
 
         if not sepNumCondition(separatrices):
             raise ValueError('Assumption on the number of separatrices is not satisfied')
 
         for omegaEqTr in fullOmegaEqsTr:
             for i, separatrix in enumerate(separatrices):
-                dist = distance.cdist(separatrix, [omegaEqTr.coordinates]).min()
+                dist = distance.cdist(separatrix, [omegaEqTr.coordinates], distFunc).min()
                 if dist < sepProximity:
                     info = {}
                     # TODO: what exactly to output
                     info['alpha'] = alphaEqTr
                     info['omega'] = omegaEqTr
-                    info['stPt']  = separatrix[0]
+                    info['stPt'] = separatrix[0]
                     info['dist'] = dist
                     info['integrationTime'] = integrTimes[i]
                     outputInfo.append(info)
@@ -56,7 +54,8 @@ def checkTargetHeteroclinic(osc: a4d.FourBiharmonicPhaseOscillators, borders, bo
     jacReduced = osc.getReducedSystemJac
 
 
-    planeEqCoords = sf.findEquilibria(rhsInvPlane, jacInvPlane, bounds, borders, eqFinder, ps)
+    planeEqCoords = sf.findEquilibria(rhsInvPlane, jacInvPlane, rhsInvPlane, jacInvPlane,
+                                      lambda X: X, bounds, borders, eqFinder, ps)
 
     if withEvents:
         eqCoords3D = sf.listEqOnInvPlaneTo3D(planeEqCoords, osc)
@@ -65,18 +64,11 @@ def checkTargetHeteroclinic(osc: a4d.FourBiharmonicPhaseOscillators, borders, bo
         allSymmEqs = None
     tresserPairs = sf.getSaddleSadfocPairs(planeEqCoords, osc, ps, needTresserPairs=True)
 
-    cnctInfo = checkSeparatrixConnection(tresserPairs, ps, proxs, rhsInvPlane, jacInvPlane, sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform, sf.anyNumber, proxs.toSinkPrxty, maxTime, listEqCoords = planeEqCoords)
+    cnctInfo = checkSeparatrixConnection(tresserPairs, ps, proxs, rhsInvPlane, jacInvPlane,
+                                         sf.idTransform, sf.pickBothSeparatrices, sf.idListTransform, sf.anyNumber,
+                                         proxs.toSinkPrxty, maxTime, distance.euclidean, listEqCoords = planeEqCoords)
     newPairs = {(it['omega'], it['alpha']) for it in cnctInfo}
-    finalInfo = checkSeparatrixConnection(newPairs, ps, proxs, rhsReduced, jacReduced, sf.embedBackTransform, sf.pickCirSeparatrix, sf.cirTransform, sf.hasExactly(1), proxs.toSddlPrxty, maxTime, listEqCoords = allSymmEqs)
+    finalInfo = checkSeparatrixConnection(newPairs, ps, proxs, rhsReduced, jacReduced,
+                                          sf.embedBackTransform, sf.pickCirSeparatrix, sf.cirTransform, sf.hasExactly(1),
+                                          proxs.toSddlPrxty, maxTime, distance.euclidean, listEqCoords = allSymmEqs)
     return finalInfo
-
-
-def getTresserPairs(osc: a4d.FourBiharmonicPhaseOscillators, borders, bounds, eqFinder, ps: sf.PrecisionSettings):
-    rhsInvPlane = osc.getRestriction
-    jacInvPlane = osc.getRestrictionJac
-
-    planeEqCoords = sf.findEquilibria(rhsInvPlane, jacInvPlane, bounds, borders, eqFinder, ps)
-
-    tresserPairs = sf.getSaddleSadfocPairs(planeEqCoords, osc, ps, needTresserPairs=True)
-
-    return tresserPairs
