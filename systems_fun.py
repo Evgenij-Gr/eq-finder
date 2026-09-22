@@ -242,6 +242,9 @@ def is3DSaddleWith1dS(eq, ps: PrecisionSettings):
 def has1DUnstable(eq, ps: PrecisionSettings):
     return eq.getEqType(ps)[2] == 1
 
+def has1DStable(eq, ps: PrecisionSettings):
+    return eq.getEqType(ps)[0] == 1
+
 def is4DSaddleFocusWith1dU(eq, ps: PrecisionSettings):
     return eq.getEqType(ps) == [3, 0, 1, 1, 0]
 
@@ -294,6 +297,17 @@ def getInitPointsOnUnstable1DSeparatrix(eq, condition, ps: PrecisionSettings):
         return [pt for pt in allStartPts if condition(pt, eq.coordinates)]
     else:
         raise ValueError('Not a saddle with 1d unstable manifold!')
+
+
+def getInitPointsOnStable1DSeparatrix(eq, condition, ps: PrecisionSettings):
+    if has1DStable(eq, ps):
+        stVector = eq.eigvectors[0]
+        pt1 = (eq.coordinates + stVector * ps.separatrixShift).real
+        pt2 = (eq.coordinates - stVector * ps.separatrixShift).real
+        allStartPts = [pt1, pt2]
+        return [pt for pt in allStartPts if condition(pt, eq.coordinates)]
+    else:
+        raise ValueError('Not a saddle with 1d stable manifold!')
 
 
 def pickBothSeparatrices(ptCoord, eqCoord):
